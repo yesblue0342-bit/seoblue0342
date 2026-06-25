@@ -1,7 +1,9 @@
 [Unit]
-Description=seoblue0342 주간 SEO 분석 갱신 트리거
-After=network.target seoblue0342.service
+Description=seoblue0342 SEO 분석 갱신 트리거 (도커 컨테이너 내부 호출)
+After=docker.service
+Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/curl -fsS -X POST http://127.0.0.1:8842/refresh
+# 컨테이너 안에서 /refresh 엔드포인트 호출 (백그라운드 분석 시작)
+ExecStart=/usr/bin/docker exec seoblue0342 curl -fsS -X POST http://127.0.0.1:8842/refresh

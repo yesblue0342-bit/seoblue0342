@@ -182,7 +182,22 @@ def analyze_seo(url: str, page_label: str) -> dict:
     parsed = urlparse(url)
     base_domain = parsed.netloc
     all_links = soup.find_all("a", href=True)
-    internal = [a for a in all_links if base_domain in a["href"] or a["href"].startswith("/")]
+
+    def _is_internal(href: str) -> bool:
+        href = href.strip()
+        if not href:
+            return False
+        if href.startswith("#"):           # 같은 페이지 내 앵커 네비게이션
+            return True
+        if href.startswith("/"):           # 루트 상대 경로
+            return True
+        if base_domain and base_domain in href:   # 같은 도메인 절대 경로
+            return True
+        if not href.startswith(("http://", "https://", "mailto:", "tel:", "javascript:")):
+            return True                    # 일반 상대 경로 (about.html 등)
+        return False
+
+    internal = [a for a in all_links if _is_internal(a["href"])]
     add_check("internal_links", len(internal) >= 3,
               f"내부링크 {len(internal)}개",
               "내부 링크를 늘려 페이지 간 연결성을 강화하세요.")

@@ -79,27 +79,32 @@ def fetch_naver_results(keyword: str, start: int = 1) -> list[dict]:
             break
 
     if not items:
-        # 텍스트 기반 링크 추출 (폴백) — 네이버 내부/광고 링크는 제외
-        seen = set()
-        skip_hosts = ("search.naver.com", "ad.search.naver.com", "siape.veta.naver.com")
+        # 텍스트 기반 링크 추출 (폴백) — 도메인 단위 중복 제거 + 강화 필터
+        # 네이버 구조 변경 시 정식 파싱 실패에 대비한 추정 모드 (정확도 낮음)
+        seen_domains = set()
+        SKIP_HOSTS = ("naver.com", "naver.net", "pstatic.net", "veta.naver.com", "nstatic")
         idx = 0
         for link in soup.select("a[href]"):
-            href = link.get("href", "")
+            href = link.get("href", "").strip()
             if not href.startswith("http"):
                 continue
-            if any(h in href for h in skip_hosts):
+            host = urlparse(href).netloc.lower()
+            if not host or any(s in host for s in SKIP_HOSTS):
                 continue
-            if href in seen:
+            # 같은 사이트의 여러 링크는 1개로 (도메인 마지막 2개 레이블 기준)
+            base_domain = ".".join(host.split(".")[-2:])
+            if base_domain in seen_domains:
                 continue
             title = link.get_text(strip=True)
-            if not title:
+            if len(title) < 4:          # 아이콘/빈 링크 제외
                 continue
-            seen.add(href)
+            seen_domains.add(base_domain)
             results.append({
                 "rank": rank_offset + idx,
                 "title": title[:80],
                 "url": href,
                 "description": "",
+                "approximate": True,    # 폴백 추정치임을 표시
             })
             idx += 1
         return results[:10]

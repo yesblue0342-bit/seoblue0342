@@ -1,8 +1,9 @@
 [Unit]
-Description=매주 월요일 SEO 분석 자동 갱신
+Description=매일 새벽 4시(KST) SEO 분석 자동 갱신
 
 [Timer]
-OnCalendar=Mon *-*-* 00:05:00 UTC
+# 매일 19:00 UTC = 익일 04:00 KST
+OnCalendar=*-*-* 19:00:00 UTC
 Persistent=true
 
 [Install]
