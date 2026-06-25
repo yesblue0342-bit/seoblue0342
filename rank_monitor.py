@@ -140,15 +140,19 @@ def fetch_naver_results(keyword: str, start: int = 1) -> list[dict]:
     return results
 
 
-def check_my_rank(keyword: str = SEARCH_KEYWORD) -> tuple[dict, list]:
+def check_my_rank(keyword: str = SEARCH_KEYWORD) -> tuple[dict, list, bool]:
     """
     내 페이지들의 현재 순위 확인.
-    Returns: (found, all_results)
+    Returns: (found, all_results, reliable)
         found        = {page_name: {"rank": int|None, "url": str|None, "title": str}, ...}
         all_results  = 수집된 전체 검색 결과 리스트
+        reliable     = 네이버 정식 파싱 성공 여부.
+                       네이버가 봇 차단/구조 변경으로 정식 셀렉터가 안 맞으면
+                       링크 전체를 긁는 폴백으로 빠지는데, 이때 순위 숫자는
+                       의미가 없으므로 reliable=False 로 표시하고 순위를 비움.
     """
     print(f"\n🔍 네이버에서 '{keyword}' 검색 중...")
-    
+
     all_results = []
     for page_num in range(MAX_PAGES):
         start = page_num * 10 + 1
@@ -159,9 +163,16 @@ def check_my_rank(keyword: str = SEARCH_KEYWORD) -> tuple[dict, list]:
 
     print(f"  총 {len(all_results)}개 결과 수집")
 
+    # ── 신뢰도 판정 ──────────────────────────────────────────
+    # 정상 네이버 검색은 페이지당 약 10~15개 결과를 돌려준다.
+    # 폴백(페이지 내 모든 a 태그 수집)으로 빠지면 페이지당 수십~수백 개가 잡힌다.
+    # 평균이 비정상적으로 크면 파싱 실패로 간주.
+    avg_per_page = len(all_results) / max(MAX_PAGES, 1)
+    reliable = bool(all_results) and avg_per_page <= 18
+
     # 내 페이지 포함 여부 확인
     found = {name: {"rank": None, "url": None} for name in MY_PAGES}
-    
+
     for result in all_results:
         url_lower = result["url"].lower()
         for page_name, domain_pattern in MY_PAGES.items():
@@ -175,7 +186,14 @@ def check_my_rank(keyword: str = SEARCH_KEYWORD) -> tuple[dict, list]:
                         "title": result.get("title", ""),
                     }
 
-    return found, all_results
+    # 파싱이 신뢰할 수 없으면 가짜 순위 숫자를 내보내지 않는다
+    if not reliable:
+        print("  ⚠️ 네이버 정식 파싱 실패(폴백) — 순위 수치는 신뢰 불가로 처리")
+        for name in found:
+            found[name] = {"rank": None, "url": found[name].get("url"),
+                           "note": "네이버 파싱 실패 — 수동 확인 필요"}
+
+    return found, all_results, reliable
 
 
 def save_rank_result(conn: sqlite3.Connection, keyword: str, 
@@ -213,8 +231,10 @@ def get_rank_history(conn: sqlite3.Connection,
 
 if __name__ == "__main__":
     conn = init_db()
-    found, all_results = check_my_rank()
+    found, all_results, reliable = check_my_rank()
     save_rank_result(conn, SEARCH_KEYWORD, found, len(all_results))
+    if not reliable:
+        print("  ⚠️ (네이버 파싱 신뢰 불가 — 순위 수치 무시)")
 
     print("\n📊 순위 결과:")
     for name, info in found.items():

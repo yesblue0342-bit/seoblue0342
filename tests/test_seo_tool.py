@@ -1,5 +1,5 @@
 """
-자동화 테스트 (총 12개)
+자동화 테스트 (총 13개)
 - 네트워크 요청 없이 순수 로직 / 산출물만 검증 (CI에서 안정적으로 통과)
 실행: pytest -q  (또는 python -m pytest)
 """
@@ -142,3 +142,23 @@ def test_failed_fetch_result_is_renderable(tmp_path):
     # dashboard 출력도 예외 없이 처리
     from dashboard import print_seo_analysis
     print_seo_analysis([failed])
+
+
+# ── 10. 순위 신뢰도: 파싱 실패 시 가짜 순위 숨김 ────────────
+def test_rank_reliability_hides_fake_rank():
+    """폴백(파싱 실패) 시 가짜 순위 숫자 대신 '측정 불가' 표시."""
+    found = {"homepage": {"rank": None, "url": "https://xn--hu5b23z.com/",
+                          "note": "네이버 파싱 실패 — 수동 확인 필요"}}
+    # reliable=False (3-tuple)
+    html = rg._html_rank_section((found, list(range(349)), False))
+    assert "신뢰할 수 없" in html        # 경고 배너
+    assert "측정 불가" in html or "수동 확인" in html
+
+    # reliable=True 일 때는 순위 정상 표시
+    ok = {"homepage": {"rank": 5, "url": "https://xn--hu5b23z.com/"}}
+    html2 = rg._html_rank_section((ok, list(range(50)), True))
+    assert "5위" in html2
+
+    # 2-tuple 하위호환 (reliable 생략 → True 취급)
+    html3 = rg._html_rank_section((ok, list(range(50))))
+    assert "5위" in html3

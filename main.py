@@ -69,11 +69,11 @@ def main():
             console=console,
         ) as progress:
             task = progress.add_task("네이버 검색 결과 수집 중...", total=None)
-            found, all_results = check_my_rank(SEARCH_KEYWORD)
+            found, all_results, reliable = check_my_rank(SEARCH_KEYWORD)
             progress.update(task, description="[green]완료!")
 
         save_rank_result(conn, SEARCH_KEYWORD, found, len(all_results))
-        rank_results = (found, all_results)
+        rank_results = (found, all_results, reliable)
         print_rank_results(found, len(all_results))
 
     # ── SEO 분석 ─────────────────────────────────────────────────

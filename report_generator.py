@@ -84,20 +84,37 @@ code { background: #f3f4f6; padding: 1px 6px; border-radius: 5px; font-size: 13p
 def _html_rank_section(rank_results) -> str:
     if not rank_results:
         return ""
-    found, all_results = rank_results
+    found = rank_results[0]
+    all_results = rank_results[1]
+    reliable = rank_results[2] if len(rank_results) > 2 else True
+
+    warn = ""
+    if not reliable:
+        warn = (
+            "<div style='background:#fef3c7;border-left:4px solid #d97706;"
+            "padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px'>"
+            "⚠️ 네이버가 봇 차단/구조 변경으로 정식 검색 결과 파싱에 실패했습니다. "
+            "아래 순위 수치는 신뢰할 수 없어 비워둡니다. "
+            "'이후' 단독보다 <b>'이후 소설가'</b>로 직접 검색해 확인하시는 것을 권장합니다."
+            "</div>"
+        )
+
     rows = []
     for name, info in found.items():
         rank = info.get("rank")
         url = info.get("url") or "-"
         cls = "ok" if rank and rank <= 10 else "no"
+        rank_label = _rank_badge(rank) if reliable else (info.get("note") or "측정 불가")
         rows.append(
             f"<tr><td>{escape(str(name))}</td>"
-            f"<td class='{cls}'>{escape(_rank_badge(rank))}</td>"
+            f"<td class='{cls}'>{escape(rank_label)}</td>"
             f"<td class='val'>{escape(url[:70])}</td></tr>"
         )
+    count_note = f"총 {len(all_results)}개 결과 수집" if reliable else "파싱 실패"
     return f"""
     <div class="card">
-      <h2>📊 네이버 검색 순위 ('이후' 검색 · 총 {len(all_results)}개 결과 수집)</h2>
+      <h2>📊 네이버 검색 순위 ('이후' 검색 · {count_note})</h2>
+      {warn}
       <table>
         <thead><tr><th>페이지</th><th>순위</th><th>URL</th></tr></thead>
         <tbody>{''.join(rows)}</tbody>
@@ -201,17 +218,28 @@ def generate_markdown_report(analysis_results, rank_results=None,
 
     # 순위 섹션
     if rank_results:
-        found, all_results = rank_results
+        found = rank_results[0]
+        all_results = rank_results[1]
+        reliable = rank_results[2] if len(rank_results) > 2 else True
         lines += [
             f"## 📊 네이버 검색 순위 (총 {len(all_results)}개 결과)",
             "",
+        ]
+        if not reliable:
+            lines += [
+                "> ⚠️ 네이버 파싱 실패(봇 차단/구조 변경) — 순위 수치 신뢰 불가. "
+                "'이후 소설가'로 직접 검색 확인 권장.",
+                "",
+            ]
+        lines += [
             "| 페이지 | 순위 | URL |",
             "|--------|------|-----|",
         ]
         for name, info in found.items():
             rank = info.get("rank")
             url = (info.get("url") or "-")[:70]
-            lines.append(f"| {name} | {_rank_badge(rank)} | {url} |")
+            label = _rank_badge(rank) if reliable else (info.get("note") or "측정 불가")
+            lines.append(f"| {name} | {label} | {url} |")
         lines.append("")
 
     # SEO 섹션

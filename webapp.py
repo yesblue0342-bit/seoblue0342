@@ -71,10 +71,10 @@ def _background_run():
         rank = None
         try:
             conn = init_db(DB_PATH)
-            found, all_results = check_my_rank(SEARCH_KEYWORD)
+            found, all_results, reliable = check_my_rank(SEARCH_KEYWORD)
             save_rank_result(conn, SEARCH_KEYWORD, found, len(all_results))
             conn.close()
-            rank = (found, all_results)
+            rank = (found, all_results, reliable)
         except Exception as e:  # noqa: BLE001
             print(f"[rank] 건너뜀: {e}")
 
@@ -203,6 +203,35 @@ def request_is_get():
 
 
 _load_status()
+
+
+# ── 자동 스케줄러 (매일 1회 자동 분석) ───────────────────────
+# 환경변수로 제어:
+#   SEO_SCHEDULE_HOUR (기본 4 = 새벽 4시), SEO_SCHEDULE_TZ (기본 Asia/Seoul)
+#   SEO_SCHEDULE_ENABLED=0 으로 끌 수 있음
+def _start_scheduler():
+    if os.environ.get("SEO_SCHEDULE_ENABLED", "1") != "1":
+        print("[scheduler] 비활성화됨 (SEO_SCHEDULE_ENABLED=0)")
+        return
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+    except ImportError:
+        print("[scheduler] apscheduler 미설치 — 자동 분석 건너뜀")
+        return
+
+    hour = int(os.environ.get("SEO_SCHEDULE_HOUR", "4"))
+    tz = os.environ.get("SEO_SCHEDULE_TZ", "Asia/Seoul")
+    sched = BackgroundScheduler(timezone=tz, daemon=True)
+    # 매일 지정 시각 1회 (네이버 차단 위험을 줄이기 위해 하루 1회로 보수적 운영)
+    sched.add_job(_background_run, CronTrigger(hour=hour, minute=0),
+                  id="daily_seo", replace_existing=True, max_instances=1)
+    sched.start()
+    print(f"[scheduler] 매일 {hour}시({tz}) 자동 분석 예약됨")
+
+
+# gunicorn 워커 1개 기준으로 한 번만 시작 (Dockerfile에서 -w 1)
+_start_scheduler()
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 8842)))

@@ -22,3 +22,17 @@
 - head-snippet.html : 홈페이지 <head>용 메타태그+JSON-LD 일괄 블록
 - structured-data.jsonld : Person/Book 스키마 (분리 관리용)
 - sitemap.xml / robots.txt : 루트 업로드용 (네이버 Yeti·구글봇 허용)
+
+## 추가 개선 (260625 오후)
+- [개선] 순위 파서 정직화: 폴백(파싱 실패) 감지 → 가짜 순위 숫자 대신 "측정 불가" 표시
+         (페이지당 결과 수가 비정상적으로 많으면 reliable=False)
+- [기능] webapp 매일 자동 분석 스케줄러 추가 (APScheduler, 기본 새벽 4시 KST, 하루 1회)
+         네이버 차단 위험 줄이려 보수적으로 1회/일
+- [배포] Dockerfile 워커 1개로 (스케줄러 중복 실행 방지)
+- check_my_rank 반환 (found, all_results) → (found, all_results, reliable) 3-tuple
+- 리포트(HTML/MD)에 신뢰불가 경고 배너 + '이후 소설가' 직접검색 권장 추가
+
+## 홈페이지(Leehu) SEO — GitHub Pages 유지
+- SEO 메타/OG/JSON-LD는 커밋 ad57da8에서 이미 적용 완료 (47점→대폭 개선 예상)
+- robots.txt/sitemap.xml NULL 바이트 손상 → 정상 파일로 복구 (커밋 4c6ed65)
+- og-image.jpg(1200x630) 생성 추가 (OG 404 해결)

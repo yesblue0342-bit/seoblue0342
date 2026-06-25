@@ -25,4 +25,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
     CMD curl -fsS http://127.0.0.1:8842/healthz || exit 1
 
 # gunicorn으로 서비스 (컨테이너 내부는 0.0.0.0 바인딩)
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8842", "webapp:app", "--timeout", "120"]
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:8842", "webapp:app", "--timeout", "120"]
