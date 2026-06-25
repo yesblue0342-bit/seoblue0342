@@ -28,6 +28,14 @@ fi
 cd "$APP_DIR"
 
 echo "▶ 2/6 Python 가상환경 + 의존성"
+# python3-venv(ensurepip)가 없으면 자동 설치
+if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
+  PYVER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+  echo "  python3-venv 미설치 → python${PYVER}-venv 설치"
+  sudo apt-get update -qq
+  sudo apt-get install -y "python${PYVER}-venv" || sudo apt-get install -y python3-venv
+fi
+rm -rf .venv
 python3 -m venv .venv
 .venv/bin/pip install -q -U pip
 .venv/bin/pip install -q -r requirements.txt
