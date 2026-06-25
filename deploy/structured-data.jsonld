@@ -1,0 +1,50 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://xn--hu5b23z.com/#person",
+      "name": "이후",
+      "alternateName": ["이후 소설가", "李後"],
+      "jobTitle": ["소설가", "시인", "가수"],
+      "description": "대한민국의 소설가이자 시인. 장편소설 《연》, 《데자뷔》, 《소나기》 등과 다수의 시집을 펴냈다.",
+      "url": "https://xn--hu5b23z.com/",
+      "nationality": {
+        "@type": "Country",
+        "name": "대한민국"
+      },
+      "birthDate": "1982",
+      "knowsAbout": ["소설", "시", "한국문학", "현대시"],
+      "sameAs": [
+        "https://ko.wikipedia.org/wiki/%EC%9D%B4%ED%9B%84_(%EC%86%8C%EC%84%A4%EA%B0%80)",
+        "https://search.naver.com/search.naver?query=%EC%9D%B4%ED%9B%84"
+      ]
+    },
+    {
+      "@type": "Book",
+      "name": "연",
+      "author": { "@id": "https://xn--hu5b23z.com/#person" },
+      "inLanguage": "ko"
+    },
+    {
+      "@type": "Book",
+      "name": "데자뷔",
+      "author": { "@id": "https://xn--hu5b23z.com/#person" },
+      "inLanguage": "ko"
+    },
+    {
+      "@type": "Book",
+      "name": "소나기",
+      "author": { "@id": "https://xn--hu5b23z.com/#person" },
+      "inLanguage": "ko"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://xn--hu5b23z.com/#website",
+      "url": "https://xn--hu5b23z.com/",
+      "name": "이후 소설가 공식 홈페이지",
+      "inLanguage": "ko",
+      "about": { "@id": "https://xn--hu5b23z.com/#person" }
+    }
+  ]
+}

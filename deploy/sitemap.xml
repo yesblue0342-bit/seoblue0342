@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://xn--hu5b23z.com/</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <!-- 하위 페이지가 있으면 위 url 블록을 복사해 loc 경로만 바꿔 추가하세요.
+       예: loc 를 홈페이지 루트 + /about 등으로 지정 -->
+</urlset>

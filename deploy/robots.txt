@@ -1,0 +1,15 @@
+# 이후 소설가 홈페이지 robots.txt
+# 모든 검색엔진 크롤러 전체 허용
+User-agent: *
+Allow: /
+
+# 네이버 검색로봇 (Yeti) 명시 허용
+User-agent: Yeti
+Allow: /
+
+# 구글봇 명시 허용
+User-agent: Googlebot
+Allow: /
+
+# 사이트맵 위치
+Sitemap: https://xn--hu5b23z.com/sitemap.xml

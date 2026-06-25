@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 도구 산출물
+rank_history.db
+reports/
+seo_report_*.html
+seo_report_*.md
+demo_report.*
+
+# 테스트/캐시
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
