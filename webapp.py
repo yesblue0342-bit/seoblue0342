@@ -216,18 +216,17 @@ def _start_scheduler():
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
-    except ImportError:
-        print("[scheduler] apscheduler 미설치 — 자동 분석 건너뜀")
-        return
 
-    hour = int(os.environ.get("SEO_SCHEDULE_HOUR", "4"))
-    tz = os.environ.get("SEO_SCHEDULE_TZ", "Asia/Seoul")
-    sched = BackgroundScheduler(timezone=tz, daemon=True)
-    # 매일 지정 시각 1회 (네이버 차단 위험을 줄이기 위해 하루 1회로 보수적 운영)
-    sched.add_job(_background_run, CronTrigger(hour=hour, minute=0),
-                  id="daily_seo", replace_existing=True, max_instances=1)
-    sched.start()
-    print(f"[scheduler] 매일 {hour}시({tz}) 자동 분석 예약됨")
+        hour = int(os.environ.get("SEO_SCHEDULE_HOUR", "4"))
+        tz = os.environ.get("SEO_SCHEDULE_TZ", "Asia/Seoul")
+        sched = BackgroundScheduler(timezone=tz, daemon=True)
+        # 매일 지정 시각 1회 (네이버 차단 위험을 줄이기 위해 하루 1회로 보수적 운영)
+        sched.add_job(_background_run, CronTrigger(hour=hour, minute=0),
+                      id="daily_seo", replace_existing=True, max_instances=1)
+        sched.start()
+        print(f"[scheduler] 매일 {hour}시({tz}) 자동 분석 예약됨")
+    except Exception as e:  # noqa: BLE001  스케줄러 실패가 앱 자체를 막으면 안 됨
+        print(f"[scheduler] 시작 실패(무시하고 계속): {e}")
 
 
 # gunicorn 워커 1개 기준으로 한 번만 시작 (Dockerfile에서 -w 1)
