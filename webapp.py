@@ -35,6 +35,7 @@ app = Flask(__name__)
 # ── 분석 상태 (메모리 + 파일 영속) ───────────────────────────
 STATUS = {"running": False, "started": None, "finished": None, "error": None}
 _LOCK = threading.Lock()
+_SCHED = None   # 스케줄러 참조 (다음 실행시각 조회용)
 
 
 def _save_status():
@@ -157,6 +158,9 @@ def index():
         meta = "분석 진행 중..."
     else:
         meta = "아직 분석 전"
+    nxt = _next_run()
+    if nxt:
+        meta += f" · 다음 자동 분석: {nxt}"
 
     if has_report:
         content = '<iframe src="/report" title="SEO 리포트"></iframe>'
@@ -189,7 +193,9 @@ def refresh():
 
 @app.route("/status")
 def status():
-    return jsonify(STATUS)
+    data = dict(STATUS)
+    data["next_run"] = _next_run()
+    return jsonify(data)
 
 
 @app.route("/healthz")
@@ -210,6 +216,7 @@ _load_status()
 #   SEO_SCHEDULE_HOUR (기본 4 = 새벽 4시), SEO_SCHEDULE_TZ (기본 Asia/Seoul)
 #   SEO_SCHEDULE_ENABLED=0 으로 끌 수 있음
 def _start_scheduler():
+    global _SCHED
     if os.environ.get("SEO_SCHEDULE_ENABLED", "1") != "1":
         print("[scheduler] 비활성화됨 (SEO_SCHEDULE_ENABLED=0)")
         return
@@ -224,9 +231,22 @@ def _start_scheduler():
         sched.add_job(_background_run, CronTrigger(hour=hour, minute=0),
                       id="daily_seo", replace_existing=True, max_instances=1)
         sched.start()
+        _SCHED = sched
         print(f"[scheduler] 매일 {hour}시({tz}) 자동 분석 예약됨")
     except Exception as e:  # noqa: BLE001  스케줄러 실패가 앱 자체를 막으면 안 됨
         print(f"[scheduler] 시작 실패(무시하고 계속): {e}")
+
+
+def _next_run():
+    """다음 자동 분석 예정 시각 (문자열) 또는 None."""
+    try:
+        if _SCHED:
+            job = _SCHED.get_job("daily_seo")
+            if job and job.next_run_time:
+                return job.next_run_time.strftime("%Y-%m-%d %H:%M")
+    except Exception:  # noqa: BLE001
+        pass
+    return None
 
 
 # gunicorn 워커 1개 기준으로 한 번만 시작 (Dockerfile에서 -w 1)

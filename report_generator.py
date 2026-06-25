@@ -88,6 +88,16 @@ def _html_rank_section(rank_results) -> str:
     all_results = rank_results[1]
     reliable = rank_results[2] if len(rank_results) > 2 else True
 
+    # 네이버 직접검색 링크 (스크래핑이 막혀도 사용자가 한 번에 실제 순위 확인 가능)
+    from urllib.parse import quote
+    link_ihu = f"https://search.naver.com/search.naver?query={quote('이후')}"
+    link_novel = f"https://search.naver.com/search.naver?query={quote('이후 소설가')}"
+    direct_links = (
+        f"<div style='margin:10px 0;font-size:13px'>🔎 네이버에서 직접 확인: "
+        f"<a href='{link_novel}' target='_blank' style='color:#16a34a;font-weight:700'>'이후 소설가' 검색</a> · "
+        f"<a href='{link_ihu}' target='_blank' style='color:#6b7280'>'이후' 검색</a></div>"
+    )
+
     warn = ""
     if not reliable:
         warn = (
@@ -115,6 +125,7 @@ def _html_rank_section(rank_results) -> str:
     <div class="card">
       <h2>📊 네이버 검색 순위 ('이후' 검색 · {count_note})</h2>
       {warn}
+      {direct_links}
       <table>
         <thead><tr><th>페이지</th><th>순위</th><th>URL</th></tr></thead>
         <tbody>{''.join(rows)}</tbody>
