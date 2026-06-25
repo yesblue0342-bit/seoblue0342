@@ -23,3 +23,8 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+# 웹앱 런타임 데이터 (OCI)
+data/
+report.html
+status.json

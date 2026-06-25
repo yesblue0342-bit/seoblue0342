@@ -1,0 +1,7 @@
+[Unit]
+Description=seoblue0342 주간 SEO 분석 갱신 트리거
+After=network.target seoblue0342.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -fsS -X POST http://127.0.0.1:8842/refresh

@@ -60,7 +60,8 @@ python main.py --output-dir /path/to/reports
 
 ```
 seoblue0342/
-├── main.py              # 메인 실행 파일
+├── main.py              # 메인 실행 파일 (CLI)
+├── webapp.py            # ★ 웹 진입점 (Flask) — OCI에서 seo.이후.com 서비스용
 ├── config.py            # 설정 (키워드, URL, 헤더 등)
 ├── rank_monitor.py      # 네이버 검색 순위 체크 + DB
 ├── seo_analyzer.py      # 페이지별 SEO 15항목 분석
@@ -70,20 +71,26 @@ seoblue0342/
 ├── LICENSE              # MIT
 ├── tests/
 │   └── test_seo_tool.py # 자동화 테스트 (12개)
-├── deploy/              # ★ 홈페이지에 실제 배포하는 SEO 자산
-│   ├── head-snippet.html      # <head>용 메타태그+JSON-LD 일괄 블록
+├── deploy/              # ★ 배포 자산
+│   ├── head-snippet.html      # 홈페이지 <head>용 메타태그+JSON-LD
 │   ├── structured-data.jsonld # Person/Book 스키마
 │   ├── sitemap.xml            # 사이트맵
-│   ├── robots.txt             # 크롤러 허용 + 사이트맵 위치
-│   └── README.md              # 배포 방법 안내
+│   ├── robots.txt             # 크롤러 허용
+│   ├── setup-oci.sh           # OCI 서버 원클릭 배포 스크립트
+│   ├── seoblue0342.service    # systemd 서비스 (gunicorn)
+│   ├── seo.이후.com.Caddyfile # Caddy reverse_proxy 블록
+│   ├── seoblue0342-refresh.*  # 주간 자동 갱신 타이머
+│   └── README.md              # 배포 방법 (홈페이지 SEO + OCI 웹)
 ├── .github/workflows/
 │   └── seo-check.yml    # 주간 자동 SEO 점검 + 테스트 (GitHub Actions)
 └── reports/             # 생성된 리포트 파일들 (자동 생성)
 ```
 
-> 📂 **`deploy/` 폴더가 "실제 배포할 수 있는 확장자 파일"입니다.**
-> `.html` / `.jsonld` / `.xml` / `.txt` — 이후.com 홈페이지에 올리면 SEO 점수가 즉시 보강됩니다.
-> 배포 방법은 [`deploy/README.md`](deploy/README.md) 참고.
+> 🖥️ **OCI 서버에서 웹으로 띄우려면** (seo.이후.com): `deploy/setup-oci.sh` 한 줄이면
+> clone → venv → systemd(gunicorn) → Caddy(HTTPS 자동)까지 끝납니다.
+> 자세한 내용은 [`deploy/README.md`](deploy/README.md)의 "OCI 서버에서 웹으로 띄우기" 참고.
+
+> 📂 **홈페이지 SEO 보강용 자산**(`.html`/`.jsonld`/`.xml`/`.txt`)도 `deploy/`에 있습니다.
 
 ---
 

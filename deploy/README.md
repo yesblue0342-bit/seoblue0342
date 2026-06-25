@@ -47,3 +47,45 @@ SEO 분석 도구가 지적한 홈페이지 누락 항목(메타 디스크립션
 `structured-data.jsonld` / `head-snippet.html`의 인물 정보(대표작, 출생연도, 직함)는
 공개 자료 기준으로 채워둔 초안입니다. 실제 프로필과 다르면 직접 수정하세요.
 특히 대표작 목록(《연》·《데자뷔》·《소나기》)과 `sameAs` 링크는 최신 상태로 갱신하는 것이 좋습니다.
+
+---
+
+# 🖥️ OCI 서버에서 웹으로 띄우기 (seo.이후.com)
+
+`seoblue0342`를 OCI 서버(161.33.4.91, Osaka)에서 직접 실행해 **https://seo.이후.com** 으로
+서비스합니다. Vercel이 아니라 OCI의 Caddy reverse_proxy 뒤에 띄우는 구성입니다
+(chat.이후.com과 동일한 방식).
+
+## 구성 요소
+- `webapp.py` — Flask 웹 진입점 (대시보드 + 🔄 다시 분석 버튼, iframe으로 리포트 표시)
+- `seoblue0342.service` — gunicorn을 127.0.0.1:8842에 띄우는 systemd 서비스
+- `seo.이후.com.Caddyfile` — Caddy 블록 (HTTPS 자동 발급)
+- `seoblue0342-refresh.{service,timer}` — 매주 월요일 자동 재분석
+- `setup-oci.sh` — 위 전부를 자동 설치하는 원클릭 스크립트
+
+## 사전 조건 (이미 충족됨)
+- DNS: `seo.이후.com` → `stella.이후.com` → 161.33.4.91 (OCI) ✅ 전파 완료
+- OCI에 Caddy(`/etc/caddy/Caddyfile`)와 Python3가 설치되어 있을 것
+
+## 배포 (OCI 서버에서 한 줄)
+```bash
+# 방법 A — 스크립트가 repo를 clone부터 알아서 진행
+curl -fsSL https://raw.githubusercontent.com/yesblue0342-bit/seoblue0342/main/deploy/setup-oci.sh | bash
+
+# 방법 B — 직접 clone 후 실행
+git clone https://github.com/yesblue0342-bit/seoblue0342.git /opt/seoblue0342
+cd /opt/seoblue0342 && bash deploy/setup-oci.sh
+```
+
+스크립트가 하는 일: `/opt/seoblue0342`에 clone → venv + 의존성 설치 →
+gunicorn systemd 서비스 등록 → Caddy에 `seo.이후.com` 블록 추가 + reload →
+주간 자동 갱신 타이머 등록.
+
+## 확인
+- 브라우저: **https://seo.이후.com** (최초 HTTPS 인증서 발급에 수십 초)
+- 로그: `journalctl -u seoblue0342 -f`
+- 상태: `systemctl status seoblue0342`
+
+## 사용자/포트 변경
+서비스 실행 사용자는 스크립트가 현재 사용자로 자동 치환합니다. 포트(기본 8842)를 바꾸려면
+`seoblue0342.service`의 `-b 127.0.0.1:8842`와 `seo.이후.com.Caddyfile`의 포트를 함께 수정하세요.

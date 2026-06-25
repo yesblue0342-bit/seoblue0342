@@ -1,0 +1,15 @@
+[Unit]
+Description=seoblue0342 - 이후 소설가 네이버 SEO 웹 (Flask/gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/seoblue0342
+Environment=SEO_DATA_DIR=/opt/seoblue0342/data
+ExecStart=/opt/seoblue0342/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8842 webapp:app --timeout 120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
