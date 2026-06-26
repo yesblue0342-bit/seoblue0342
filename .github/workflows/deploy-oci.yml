@@ -30,13 +30,19 @@ jobs:
         id: chk
         env:
           H: ${{ secrets.OCI_SSH_HOST }}
+          U: ${{ secrets.OCI_SSH_USER }}
           K: ${{ secrets.OCI_SSH_KEY }}
         run: |
+          # 값은 절대 출력하지 않고 존재 여부(yes/NO)만 진단 출력
+          echo "── 시크릿 진단(이 레포 기준) ──"
+          echo "OCI_SSH_HOST : $([ -n "$H" ] && echo yes || echo 'NO(없음)')"
+          echo "OCI_SSH_USER : $([ -n "$U" ] && echo yes || echo 'NO(없음)')"
+          echo "OCI_SSH_KEY  : $([ -n "$K" ] && echo yes || echo 'NO(없음)')"
           if [ -n "$H" ] && [ -n "$K" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::OCI 배포 시크릿(OCI_SSH_HOST/OCI_SSH_KEY) 미설정 — 배포 건너뜀. 등록 시 push마다 자동 배포됩니다."
+            echo "::warning::OCI_SSH_HOST 또는 OCI_SSH_KEY 가 이 레포(seoblue0342)에 없습니다. 위 NO 항목을 정확한 이름으로 이 레포에 등록하세요."
           fi
 
       - name: SSH deploy (git pull + 도커 재빌드/재실행 + 분석 갱신)
