@@ -6,8 +6,12 @@ name: Deploy to OCI
 #   OCI_SSH_USER   : SSH 사용자 (예: ubuntu)
 #   OCI_SSH_KEY    : SSH 개인키(전체, -----BEGIN ... END-----)
 #   OCI_SSH_PORT   : (선택) SSH 포트, 기본 22
-#   OCI_APP_DIR    : (선택) 앱 경로, 기본 /opt/seoblue0342
+#   OCI_APP_DIR    : (선택) 앱 경로. 미설정 시 /opt/<레포명> 으로 자동 결정.
+#                    → 레포마다 다른 값이라 조직 공유 시크릿으로 넣지 말 것.
 # 시크릿 미설정 시 배포 단계는 건너뛰고 워크플로는 성공(green)으로 종료.
+#
+# ※ 이 워크플로는 레포 비종속(generic)이라, 신규 레포에 이 파일만 복사하고
+#   OCI_SSH_HOST/USER/KEY 만 등록하면 /opt/<레포명> 으로 자동 배포된다.
 
 on:
   push:
@@ -47,7 +51,7 @@ jobs:
           script: |
             set -e
             APP_DIR="${{ secrets.OCI_APP_DIR }}"
-            APP_DIR="${APP_DIR:-/opt/seoblue0342}"
+            APP_DIR="${APP_DIR:-/opt/${{ github.event.repository.name }}}"
             echo "▶ deploy to $APP_DIR"
             cd "$APP_DIR"
             # repo가 root 소유로 clone된 경우 보정 (OCI ubuntu는 무비번 sudo)
