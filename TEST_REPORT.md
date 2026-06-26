@@ -11,11 +11,22 @@
 ## 2. 단위/통합 테스트 (pytest)
 | 항목 | 결과 |
 |------|------|
-| tests/test_seo_tool.py (12개) | ✅ 12 passed |
+| tests/test_seo_tool.py (17개) | ✅ 17 passed |
 
 검증 범위: config 무결성, Accept 헤더 중복 제거, SEO 체크 항목 정의,
 HTML/MD 리포트 생성, rank=None 안전 처리, 점수 색상 로직, DB 저장/조회 라운드트립,
 JSON-LD 유효성, **fetch 실패 결과 렌더링 회귀 테스트**.
+
+## 5. 정보 소스 확장 (260626) — 신규 4건
+| 항목 | 결과 |
+|------|------|
+| 나무위키·교보문고·구글·유튜브 URL 정의(config) | ✅ test_config_extra_sources_present |
+| ANALYSIS_TARGETS 6개 소스 모두 포함 | ✅ test_analysis_targets_cover_all_sources |
+| run_full_analysis 가 타겟 순회(네트워크 모킹) | ✅ test_run_full_analysis_uses_targets |
+| 리포트 상단 소스 메뉴(nav)+카드 앵커 렌더 | ✅ test_html_report_has_source_menu |
+
+> 실행 환경: Python 3.12 venv, `pytest -q` → **17 passed in 0.24s**.
+> run_full_analysis 는 ANALYSIS_TARGETS 단일출처를 순회하므로 카드·상단 메뉴·일일 배치잡에 동시 반영.
 
 ## 3. 산출물 유효성
 | 항목 | 결과 |

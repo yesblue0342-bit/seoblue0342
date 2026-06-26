@@ -78,6 +78,13 @@ th { color: #6b7280; font-weight: 600; font-size: 12px; text-transform: uppercas
 .rank-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 0; }
 footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 32px; }
 code { background: #f3f4f6; padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+.menu { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; }
+.menu a { display:inline-flex; align-items:center; gap:6px; text-decoration:none;
+  background:#fff; border:1px solid #e5e7eb; border-radius:999px; padding:7px 14px;
+  font-size:13px; font-weight:600; color:#15803d; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.menu a:hover { background:#f0fdf4; border-color:#16a34a; }
+.menu a .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.card { scroll-margin-top: 16px; }
 """
 
 
@@ -122,7 +129,7 @@ def _html_rank_section(rank_results) -> str:
         )
     count_note = f"총 {len(all_results)}개 결과 수집" if reliable else "파싱 실패"
     return f"""
-    <div class="card">
+    <div class="card" id="rank-section">
       <h2>📊 네이버 검색 순위 ('이후' 검색 · {count_note})</h2>
       {warn}
       {direct_links}
@@ -133,7 +140,33 @@ def _html_rank_section(rank_results) -> str:
     </div>"""
 
 
-def _html_seo_section(r: dict) -> str:
+def _menu_anchor(idx: int) -> str:
+    """카드 앵커 id (상단 메뉴 점프용)."""
+    return f"src-{idx}"
+
+
+def _html_menu(analysis_results, has_rank: bool) -> str:
+    """상단 정보 소스 메뉴 (각 카드로 점프하는 칩)."""
+    if not analysis_results:
+        return ""
+    chips = []
+    if has_rank:
+        chips.append(
+            "<a href='#rank-section'><span class='dot' style='background:#16a34a'></span>"
+            "네이버 순위</a>"
+        )
+    for i, r in enumerate(analysis_results):
+        score = r.get("score", 0)
+        color = _score_color(score)
+        label = escape(r.get("label", f"소스 {i+1}"))
+        chips.append(
+            f"<a href='#{_menu_anchor(i)}'>"
+            f"<span class='dot' style='background:{color}'></span>{label}</a>"
+        )
+    return f"<nav class='menu'>{''.join(chips)}</nav>"
+
+
+def _html_seo_section(r: dict, idx: int = 0) -> str:
     score = r.get("score", 0)
     meta = r.get("meta", {})
     color = _score_color(score)
@@ -165,7 +198,7 @@ def _html_seo_section(r: dict) -> str:
     )
 
     return f"""
-    <div class="card">
+    <div class="card" id="{_menu_anchor(idx)}">
       <h2>{escape(r.get('label', ''))}</h2>
       <span class="score-pill" style="background:{color}">{emoji} {score}점
         &nbsp;<span style="opacity:.85;font-weight:500">
@@ -185,8 +218,10 @@ def generate_html_report(analysis_results, rank_results=None,
                          output_path="seo_report.html") -> str:
     """SEO 분석 결과를 HTML 리포트 파일로 저장하고 경로를 반환."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    body = [_html_rank_section(rank_results)]
-    body += [_html_seo_section(r) for r in (analysis_results or [])]
+    results = analysis_results or []
+    menu = _html_menu(results, has_rank=bool(rank_results))
+    body = [menu, _html_rank_section(rank_results)]
+    body += [_html_seo_section(r, i) for i, r in enumerate(results)]
 
     html = f"""<!DOCTYPE html>
 <html lang="ko">

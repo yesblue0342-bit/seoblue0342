@@ -50,6 +50,63 @@ def test_config_my_pages_keys():
     assert set(["naver_profile", "wikipedia", "homepage"]).issubset(config.MY_PAGES.keys())
 
 
+def test_config_extra_sources_present():
+    # 나무위키·교보문고·구글·유튜브 정보 소스 URL 정의 존재
+    assert config.NAMU_URL.startswith("https://namu.wiki/")
+    assert "kyobobook.co.kr" in config.KYOBO_URL
+    assert config.GOOGLE_URL.startswith("https://www.google.com/")
+    assert "youtube.com" in config.YOUTUBE_URL
+
+
+def test_analysis_targets_cover_all_sources():
+    # 대시보드 분석 대상(=카드/메뉴)에 6개 정보 소스가 모두 포함돼야 함
+    urls = [u for _, u in config.ANALYSIS_TARGETS]
+    for u in (config.HOMEPAGE_URL, config.WIKIPEDIA_URL, config.NAMU_URL,
+              config.KYOBO_URL, config.GOOGLE_URL, config.YOUTUBE_URL):
+        assert u in urls
+    assert len(config.ANALYSIS_TARGETS) >= 6
+
+
+def test_run_full_analysis_uses_targets(monkeypatch):
+    # run_full_analysis 가 ANALYSIS_TARGETS 를 그대로 순회하는지 (네트워크 없이 검증)
+    import seo_analyzer
+    seen = []
+
+    def fake_analyze(url, label):
+        seen.append((label, url))
+        return {"label": label, "url": url, "meta": {}, "checks": [],
+                "score": 0, "passed": 0, "total": 0, "recommendations": []}
+
+    monkeypatch.setattr(seo_analyzer, "analyze_seo", fake_analyze)
+    monkeypatch.setattr(seo_analyzer.time, "sleep", lambda *_: None)
+    results = seo_analyzer.run_full_analysis()
+    assert len(results) == len(config.ANALYSIS_TARGETS)
+    labels = [lbl for lbl, _ in seen]
+    assert any("나무위키" in l for l in labels)
+    assert any("교보문고" in l for l in labels)
+    assert any("구글" in l for l in labels)
+    assert any("유튜브" in l for l in labels)
+
+
+def test_html_report_has_source_menu(tmp_path):
+    # 리포트 상단에 정보 소스 점프 메뉴(nav.menu)와 카드 앵커가 있어야 함
+    multi = [
+        {"label": "나무위키 - 이후(소설가)", "url": "https://namu.wiki/x",
+         "meta": {"status": 200}, "checks": [], "score": 80, "passed": 0,
+         "total": 0, "recommendations": []},
+        {"label": "교보문고 - 작가 이후", "url": "https://store.kyobobook.co.kr/x",
+         "meta": {"status": 200}, "checks": [], "score": 30, "passed": 0,
+         "total": 0, "recommendations": []},
+    ]
+    out = tmp_path / "menu.html"
+    rg.generate_html_report(multi, None, str(out))
+    html = out.read_text(encoding="utf-8")
+    assert "class='menu'" in html or 'class="menu"' in html
+    assert "#src-0" in html and "#src-1" in html
+    assert 'id="src-0"' in html and 'id="src-1"' in html
+    assert "나무위키" in html and "교보문고" in html
+
+
 def test_config_headers_no_duplicate_accept():
     # Accept 헤더에 동일 MIME 중복이 없어야 함 (수정된 버그)
     accept = config.HEADERS["Accept"]

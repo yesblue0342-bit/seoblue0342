@@ -10,12 +10,32 @@ MY_PAGES = {
     "naver_profile": "search.naver.com",
     "wikipedia": "ko.wikipedia.org/wiki/%EC%9D%B4%ED%9B%84_(%EC%86%8C%EC%84%A4%EA%B0%80)",
     "homepage": "xn--hu5b23z.com",  # 이후.com
+    "namu": "namu.wiki",            # 나무위키
+    "kyobo": "store.kyobobook.co.kr",  # 교보문고 작가 페이지
+    "youtube": "youtube.com",       # 유튜브 채널
 }
 
 # 홈페이지 실제 URL
 HOMEPAGE_URL = "https://xn--hu5b23z.com/"
 WIKIPEDIA_URL = "https://ko.wikipedia.org/wiki/%EC%9D%B4%ED%9B%84_(%EC%86%8C%EC%84%A4%EA%B0%80)"
 NAVER_PROFILE_URL = "https://search.naver.com/search.naver?where=nexearch&sm=tab_etc&mra=bjky&pkid=1&os=215161&qvt=0&query=%EC%9D%B4%ED%9B%84"
+
+# 추가 정보 소스 URL (나무위키 / 교보문고 / 구글 / 유튜브)
+NAMU_URL = "https://namu.wiki/w/%EC%9D%B4%ED%9B%84(%EC%86%8C%EC%84%A4%EA%B0%80)"
+KYOBO_URL = "https://store.kyobobook.co.kr/person/detail/1000809404"
+GOOGLE_URL = "https://www.google.com/search?q=%EC%86%8C%EC%84%A4%EA%B0%80%EC%9D%B4%ED%9B%84"
+YOUTUBE_URL = "https://www.youtube.com/channel/UCQdIJKAOKVI8pKIsvcFBEKA"
+
+# 대시보드 분석 대상 (라벨, URL).
+# 대시보드의 카드/메뉴는 이 목록을 그대로 따른다 — 여기에 추가하면 카드·메뉴·배치잡 모두 반영됨.
+ANALYSIS_TARGETS = [
+    ("이후 공식 홈페이지 (이후.com)", HOMEPAGE_URL),
+    ("위키백과 - 이후 (소설가)", WIKIPEDIA_URL),
+    ("나무위키 - 이후(소설가)", NAMU_URL),
+    ("교보문고 - 작가 이후", KYOBO_URL),
+    ("구글 검색 - 소설가 이후", GOOGLE_URL),
+    ("유튜브 - 이후 채널", YOUTUBE_URL),
+]
 
 # 네이버 검색 URL
 NAVER_SEARCH_URL = "https://search.naver.com/search.naver"

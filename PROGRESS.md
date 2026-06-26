@@ -32,6 +32,17 @@
 - check_my_rank 반환 (found, all_results) → (found, all_results, reliable) 3-tuple
 - 리포트(HTML/MD)에 신뢰불가 경고 배너 + '이후 소설가' 직접검색 권장 추가
 
+## 정보 소스 확장 (260626)
+- [기능] 대시보드 분석 대상에 나무위키·교보문고·구글·유튜브 추가.
+         단일출처 config.ANALYSIS_TARGETS 에 (라벨, URL)로 정의 → seo_analyzer.run_full_analysis 가
+         그대로 순회. 카드·상단 메뉴·일일 자동 배치잡(스케줄러) 모두 자동 반영됨.
+- [기능] 리포트 상단에 정보 소스 점프 메뉴(nav.menu, 점수색 점) + 각 카드 앵커(id=src-N) 추가
+         → "대시보드에 메뉴가 없다"는 요청 해결.
+- [가정] 구글/유튜브 외부 페이지는 봇 차단·JS 렌더로 fetch 실패할 수 있음 → 기존 graceful 처리로
+         "접근 불가" 카드로 표시(크래시 없음). 메뉴/카드 노출 목적은 충족.
+- [가정] MY_PAGES 에도 namu/kyobo/youtube 추가 → 네이버 순위 모니터가 해당 도메인 노출도 추적.
+- [테스트] 신규 4건 추가, pytest 총 17 passed.
+
 ## 홈페이지(Leehu) SEO — GitHub Pages 유지
 - SEO 메타/OG/JSON-LD는 커밋 ad57da8에서 이미 적용 완료 (47점→대폭 개선 예상)
 - robots.txt/sitemap.xml NULL 바이트 손상 → 정상 파일로 복구 (커밋 4c6ed65)

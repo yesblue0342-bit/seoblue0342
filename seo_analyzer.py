@@ -11,7 +11,9 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from config import HEADERS, HOMEPAGE_URL, WIKIPEDIA_URL, CRAWL_DELAY
+from config import (
+    HEADERS, HOMEPAGE_URL, WIKIPEDIA_URL, CRAWL_DELAY, ANALYSIS_TARGETS,
+)
 
 
 # SEO 체크 항목 정의
@@ -219,13 +221,13 @@ def analyze_seo(url: str, page_label: str) -> dict:
 
 
 def run_full_analysis() -> list[dict]:
-    """홈페이지 + 위키백과 전체 분석"""
-    targets = [
-        (HOMEPAGE_URL, "이후 공식 홈페이지 (이후.com)"),
-        (WIKIPEDIA_URL, "위키백과 - 이후 (소설가)"),
-    ]
+    """전체 정보 소스 분석 (홈페이지·위키백과·나무위키·교보문고·구글·유튜브).
+
+    분석 대상은 config.ANALYSIS_TARGETS 가 단일 출처(single source of truth).
+    여기에 항목을 추가하면 대시보드 카드·상단 메뉴·일일 배치잡에 자동 반영된다.
+    """
     results = []
-    for url, label in targets:
+    for label, url in ANALYSIS_TARGETS:
         print(f"\n🔎 분석 중: {label}")
         result = analyze_seo(url, label)
         results.append(result)

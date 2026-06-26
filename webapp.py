@@ -169,7 +169,7 @@ def index():
         content = (
             '<div class="empty"><h2>아직 분석 결과가 없습니다</h2>'
             '<p>오른쪽 위 <b>🔄 다시 분석</b> 버튼을 누르면 네이버 순위와 '
-            '홈페이지·위키백과 SEO를 분석합니다.</p>'
+            '홈페이지·위키백과·나무위키·교보문고·구글·유튜브 SEO를 분석합니다.</p>'
             f'{err}</div>'
         )
     return Response(SHELL_HTML.format(meta=meta, content=content), mimetype="text/html")

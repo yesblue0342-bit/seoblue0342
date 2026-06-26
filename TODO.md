@@ -8,6 +8,12 @@
 - [x] 6. 순위 히스토리 DB 저장/조회
 - [x] 7. 전체 테스트 및 실행 확인
 
+## 추가 완료 (정보 소스 확장 · 260626)
+- [x] 정보 소스에 나무위키·교보문고·구글·유튜브 추가 (config.ANALYSIS_TARGETS 단일출처)
+- [x] run_full_analysis 가 ANALYSIS_TARGETS 순회 → 카드/일일 배치잡 자동 반영
+- [x] 대시보드 상단 정보 소스 점프 메뉴(nav.menu) + 카드 앵커 추가
+- [x] 신규 테스트 4건 추가 (소스 URL·타겟·메뉴 렌더 검증) — pytest 17 passed
+
 ## 추가 완료 (정리/배포)
 - [x] 누락 모듈 report_generator.py 작성 (HTML/MD 리포트)
 - [x] 소스 버그 수정 (Accept 헤더 중복, fetch 실패 KeyError 크래시, 셀렉터 보강)
