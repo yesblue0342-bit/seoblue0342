@@ -1,0 +1,7 @@
+{
+  "name": "Deploy to OCI (Docker)",
+  "description": "main push 시 OCI 우분투 서버로 SSH 자동 재배포. /opt/<레포명> 자동 결정. 조직 시크릿(OCI_SSH_HOST/USER/KEY) 사용.",
+  "iconName": "octicon server",
+  "categories": ["Deployment"],
+  "filePatterns": []
+}
