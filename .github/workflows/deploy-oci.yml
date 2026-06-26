@@ -58,13 +58,24 @@ jobs:
             set -e
             APP_DIR="${{ secrets.OCI_APP_DIR }}"
             APP_DIR="${APP_DIR:-/opt/${{ github.event.repository.name }}}"
-            echo "▶ deploy to $APP_DIR"
-            cd "$APP_DIR"
-            # repo가 root 소유로 clone된 경우 보정 (OCI ubuntu는 무비번 sudo)
-            sudo -n chown -R "$(id -un):$(id -gn)" "$APP_DIR" 2>/dev/null || true
-            git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-            git fetch --all --prune
-            git reset --hard origin/main
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            echo "▶ deploy to $APP_DIR (repo: $REPO_URL)"
+            # 서버에 git 체크아웃이 없으면 최초 1회 자동 clone (공개 레포 → 인증 불필요)
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "▶ 최초 배포: $APP_DIR 없음 → clone"
+              sudo -n mkdir -p "$APP_DIR" 2>/dev/null || mkdir -p "$APP_DIR"
+              sudo -n chown -R "$(id -un):$(id -gn)" "$APP_DIR" 2>/dev/null || true
+              git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+              git clone "$REPO_URL" "$APP_DIR"
+              cd "$APP_DIR"
+            else
+              cd "$APP_DIR"
+              # repo가 root 소유로 clone된 경우 보정 (OCI ubuntu는 무비번 sudo)
+              sudo -n chown -R "$(id -un):$(id -gn)" "$APP_DIR" 2>/dev/null || true
+              git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+              git fetch --all --prune
+              git reset --hard origin/main
+            fi
             bash deploy/run-docker.sh
             # 새 코드로 컨테이너가 뜬 뒤, 새 정보 소스가 카드에 보이도록 분석 1회 트리거
             echo "▶ 분석 갱신 트리거 (/refresh)"
