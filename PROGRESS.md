@@ -32,6 +32,14 @@
 - check_my_rank 반환 (found, all_results) → (found, all_results, reliable) 3-tuple
 - 리포트(HTML/MD)에 신뢰불가 경고 배너 + '이후 소설가' 직접검색 권장 추가
 
+## 정보 소스 확장 + OCI 자동배포 (260626 2차)
+- [기능] 다음(Daum) 검색 소스 추가 → 총 7개 (홈페이지·위키백과·나무위키·다음·구글·교보문고·유튜브).
+- [배포] OCI 자동배포 부재로 1차 커밋이 라이브에 안 보였던 문제 → deploy-oci.yml 추가.
+         main push 시 OCI 서버 SSH → git reset --hard + run-docker.sh 재빌드 → /refresh 분석 갱신.
+         OCI_SSH_* 시크릿 미설정 시 graceful skip(green). stella-ai-workspace 패턴 재사용.
+- [가정] OCI 배포 시크릿 이름은 stella-ai-workspace 와 동일(OCI_SSH_HOST/USER/KEY/PORT, OCI_APP_DIR)
+         으로 통일. 이 레포에 미등록이면 Settings→Secrets 에 동일 이름으로 등록 시 자동 배포됨.
+
 ## 정보 소스 확장 (260626)
 - [기능] 대시보드 분석 대상에 나무위키·교보문고·구글·유튜브 추가.
          단일출처 config.ANALYSIS_TARGETS 에 (라벨, URL)로 정의 → seo_analyzer.run_full_analysis 가

@@ -51,20 +51,22 @@ def test_config_my_pages_keys():
 
 
 def test_config_extra_sources_present():
-    # 나무위키·교보문고·구글·유튜브 정보 소스 URL 정의 존재
+    # 나무위키·다음·교보문고·구글·유튜브 정보 소스 URL 정의 존재
     assert config.NAMU_URL.startswith("https://namu.wiki/")
+    assert config.DAUM_URL.startswith("https://search.daum.net/")
     assert "kyobobook.co.kr" in config.KYOBO_URL
     assert config.GOOGLE_URL.startswith("https://www.google.com/")
     assert "youtube.com" in config.YOUTUBE_URL
 
 
 def test_analysis_targets_cover_all_sources():
-    # 대시보드 분석 대상(=카드/메뉴)에 6개 정보 소스가 모두 포함돼야 함
+    # 대시보드 분석 대상(=카드/메뉴)에 7개 정보 소스가 모두 포함돼야 함
     urls = [u for _, u in config.ANALYSIS_TARGETS]
     for u in (config.HOMEPAGE_URL, config.WIKIPEDIA_URL, config.NAMU_URL,
-              config.KYOBO_URL, config.GOOGLE_URL, config.YOUTUBE_URL):
+              config.DAUM_URL, config.KYOBO_URL, config.GOOGLE_URL,
+              config.YOUTUBE_URL):
         assert u in urls
-    assert len(config.ANALYSIS_TARGETS) >= 6
+    assert len(config.ANALYSIS_TARGETS) >= 7
 
 
 def test_run_full_analysis_uses_targets(monkeypatch):
@@ -83,6 +85,7 @@ def test_run_full_analysis_uses_targets(monkeypatch):
     assert len(results) == len(config.ANALYSIS_TARGETS)
     labels = [lbl for lbl, _ in seen]
     assert any("나무위키" in l for l in labels)
+    assert any("다음" in l for l in labels)
     assert any("교보문고" in l for l in labels)
     assert any("구글" in l for l in labels)
     assert any("유튜브" in l for l in labels)
