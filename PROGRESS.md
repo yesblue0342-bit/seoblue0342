@@ -32,6 +32,14 @@
 - check_my_rank 반환 (found, all_results) → (found, all_results, reliable) 3-tuple
 - 리포트(HTML/MD)에 신뢰불가 경고 배너 + '이후 소설가' 직접검색 권장 추가
 
+## 모바일 레이아웃 수정 (260626 3차)
+- [버그] 셸 헤더(.bar)가 비-wrap flex 행이라 모바일에서 긴 제목이 한 글자씩 세로로 깨짐
+         → flex-wrap + 모바일 미디어쿼리(제목 전체폭, 메타/버튼 2행 배치)로 수정.
+- [개선] body flex-column + iframe flex:1 로 변경(고정 calc(100vh-50px) 제거) — 헤더 높이 변동에도 안정.
+- [개선] 리포트(report_generator) 모바일 미디어쿼리 추가(hero/card/table/menu 패딩·폰트 축소).
+- [주의] 위 수정은 webapp.py(셸)·report_generator.py(리포트) 코드 변경 → OCI 컨테이너 재빌드 필요.
+         자동배포 시크릿 미등록 상태면 라이브 미반영(아래 2차 항목 참조).
+
 ## 정보 소스 확장 + OCI 자동배포 (260626 2차)
 - [기능] 다음(Daum) 검색 소스 추가 → 총 7개 (홈페이지·위키백과·나무위키·다음·구글·교보문고·유튜브).
 - [배포] OCI 자동배포 부재로 1차 커밋이 라이브에 안 보였던 문제 → deploy-oci.yml 추가.

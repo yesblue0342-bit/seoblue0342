@@ -98,25 +98,36 @@ SHELL_HTML = """<!DOCTYPE html>
 <title>이후 소설가 — 네이버 SEO 대시보드</title>
 <style>
   * {{ box-sizing: border-box; }}
-  body {{ margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif; background:#f6f7f9; }}
-  .bar {{ position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:14px;
-          background:#16a34a; color:#fff; padding:12px 20px; box-shadow:0 1px 4px rgba(0,0,0,.15); }}
-  .bar h1 {{ font-size:16px; margin:0; flex:1; }}
-  .bar .meta {{ font-size:12px; opacity:.9; }}
+  html, body {{ height:100%; }}
+  body {{ margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+          background:#f6f7f9; display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }}
+  .bar {{ position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:8px 14px; flex-wrap:wrap;
+          background:#16a34a; color:#fff; padding:12px 18px; box-shadow:0 1px 4px rgba(0,0,0,.15); }}
+  .bar h1 {{ font-size:16px; margin:0; flex:1 1 auto; min-width:0; line-height:1.3; font-weight:700; }}
+  .bar h1 .sub {{ font-weight:500; opacity:.92; }}
+  .bar .meta {{ font-size:12px; opacity:.92; line-height:1.35; }}
   .btn {{ background:#fff; color:#15803d; border:none; border-radius:8px; padding:8px 16px;
-          font-weight:700; cursor:pointer; font-size:14px; }}
+          font-weight:700; cursor:pointer; font-size:14px; white-space:nowrap; }}
   .btn:disabled {{ opacity:.6; cursor:default; }}
-  iframe {{ width:100%; height:calc(100vh - 50px); border:none; background:#fff; }}
-  .empty {{ max-width:560px; margin:80px auto; text-align:center; color:#374151; }}
+  iframe {{ flex:1 1 auto; width:100%; min-height:0; border:none; background:#fff; }}
+  .empty {{ max-width:560px; margin:64px auto; padding:0 20px; text-align:center; color:#374151; }}
   .empty h2 {{ color:#16a34a; }}
   .spinner {{ display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4);
               border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; }}
   @keyframes spin {{ to {{ transform:rotate(360deg); }} }}
+  /* ── 모바일: 제목이 한 글자씩 세로로 깨지던 문제 수정 ── */
+  @media (max-width:600px) {{
+    .bar {{ padding:10px 14px; gap:4px 10px; }}
+    .bar h1 {{ flex:1 1 100%; font-size:15px; }}
+    .bar h1 .sub {{ display:block; font-size:12px; opacity:.85; margin-top:1px; }}
+    .bar .meta {{ order:2; flex:1 1 auto; font-size:11px; }}
+    .btn {{ order:3; margin-left:auto; padding:7px 12px; font-size:13px; }}
+  }}
 </style>
 </head>
 <body>
   <div class="bar">
-    <h1>📈 이후 소설가 — 네이버 SEO 대시보드</h1>
+    <h1>📈 이후 소설가 <span class="sub">— 네이버 SEO 대시보드</span></h1>
     <span class="meta" id="meta">{meta}</span>
     <button class="btn" id="run" onclick="runAnalysis()">🔄 다시 분석</button>
   </div>

@@ -25,6 +25,8 @@ JSON-LD 유효성, **fetch 실패 결과 렌더링 회귀 테스트**.
 | run_full_analysis 가 타겟 순회(네트워크 모킹, 다음 포함) | ✅ test_run_full_analysis_uses_targets |
 | 리포트 상단 소스 메뉴(nav)+카드 앵커 렌더 | ✅ test_html_report_has_source_menu |
 | deploy-oci.yml YAML 유효성 | ✅ yaml.safe_load 통과 |
+| 셸 헤더 모바일 깨짐 수정(flex-wrap+미디어쿼리) | ✅ py_compile + SHELL_HTML .format() 검증 |
+| 리포트 모바일 미디어쿼리(hero/card/table/menu) | ✅ 렌더 확인 |
 
 > 실행 환경: Python 3.12 venv, `pytest -q` → **17 passed in 1.19s**.
 > 분석 대상 7개: 홈페이지·위키백과·나무위키·다음·구글·교보문고·유튜브.

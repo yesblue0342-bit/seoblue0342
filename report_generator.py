@@ -85,6 +85,18 @@ code { background: #f3f4f6; padding: 1px 6px; border-radius: 5px; font-size: 13p
 .menu a:hover { background:#f0fdf4; border-color:#16a34a; }
 .menu a .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
 .card { scroll-margin-top: 16px; }
+@media (max-width: 600px) {
+  .wrap { padding: 18px 14px 48px; }
+  header.hero { padding: 20px 18px; border-radius: 12px; margin-bottom: 18px; }
+  header.hero h1 { font-size: 19px; }
+  .card { padding: 18px 16px; border-radius: 12px; }
+  .card h2 { font-size: 16px; }
+  th, td { padding: 8px 6px; }
+  th:first-child, td:first-child { white-space: nowrap; }
+  .menu { gap: 6px; }
+  .menu a { padding: 6px 11px; font-size: 12px; }
+  table { font-size: 13px; }
+}
 """
 
 
