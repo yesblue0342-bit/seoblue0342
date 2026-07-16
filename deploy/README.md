@@ -40,8 +40,13 @@ SEO 분석 도구가 지적한 홈페이지 누락 항목(메타 디스크립션
 > 종료 리스크가 없는 서드파티 SERP API인 Serper로 전환했습니다.
 
 1. [serper.dev](https://serper.dev) 가입 후 대시보드에서 API 키 복사 → `SERPER_API_KEY`
-2. 서버에서 `/etc/systemd/system/seoblue0342.service`의 `Environment=SERPER_API_KEY=...` 주석을
-   실제 값으로 해제하고 `sudo systemctl daemon-reload && sudo systemctl restart seoblue0342`
+2. 배포 방식에 따라 키 주입:
+   - **Docker 배포(`run-docker.sh`, 현재 운영 방식):** 호스트 앱 루트 `/opt/seoblue0342`에
+     `.env` 파일을 만들고 `SERPER_API_KEY=발급키` 한 줄을 넣으세요. 이 파일은 gitignore 대상이라
+     저장소에 커밋되지 않으며, 이후 배포(`run-docker.sh`)마다 `--env-file`로 **자동 주입**되므로
+     컨테이너를 수동으로 다시 띄울 필요가 없습니다.
+   - **systemd 배포:** `/etc/systemd/system/seoblue0342.service`의 `Environment=SERPER_API_KEY=...`
+     주석을 실제 값으로 해제하고 `sudo systemctl daemon-reload && sudo systemctl restart seoblue0342`
 
 ---
 

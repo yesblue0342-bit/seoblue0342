@@ -17,10 +17,22 @@ sudo docker build -t "$NAME" .
 echo "▶ 기존 컨테이너 정리"
 sudo docker rm -f "$NAME" 2>/dev/null || true
 
+# 앱 루트(.env)의 환경변수(SERPER_API_KEY 등)를 컨테이너에 자동 주입.
+# .env는 gitignore 대상이라 저장소엔 없고 호스트에만 존재 → 배포 때마다 키 유실 방지.
+ENV_ARG=""
+if [ -f "$PWD/.env" ]; then
+  ENV_ARG="--env-file $PWD/.env"
+  echo "▶ .env 발견 — 환경변수 주입 ($PWD/.env)"
+else
+  echo "⚠️ .env 없음 — SERPER_API_KEY 미주입 상태로 실행됨."
+  echo "   호스트 앱 루트($PWD)에 .env 파일을 만들고 'SERPER_API_KEY=발급키' 한 줄을 넣으세요."
+fi
+
 echo "▶ $NETWORK 네트워크에 컨테이너 실행"
 sudo docker run -d --name "$NAME" \
   --network "$NETWORK" \
   --restart unless-stopped \
+  $ENV_ARG \
   "$NAME"
 
 echo "▶ 헬스체크 (10초 대기)"
