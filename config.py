@@ -28,16 +28,21 @@ KYOBO_URL = "https://store.kyobobook.co.kr/person/detail/1000809404"
 GOOGLE_URL = "https://www.google.com/search?q=%EC%86%8C%EC%84%A4%EA%B0%80%EC%9D%B4%ED%9B%84"
 YOUTUBE_URL = "https://www.youtube.com/channel/UCQdIJKAOKVI8pKIsvcFBEKA"
 
-# 대시보드 분석 대상 (라벨, URL).
+# 대시보드 분석 대상 (라벨, URL, 페이지 유형).
 # 대시보드의 카드/메뉴는 이 목록을 그대로 따른다 — 여기에 추가하면 카드·메뉴·배치잡 모두 반영됨.
+#
+# 페이지 유형 (seo_analyzer 가 유형별로 체크 항목·권고 내용을 다르게 적용):
+#   owned   : 우리가 직접 수정 가능한 페이지 → 전체 온페이지 SEO 체크리스트
+#   profile : 외부 플랫폼 프로필/문서 (HTML 직접 수정 불가) → 콘텐츠·노출 중심 체크
+#   serp    : 검색 결과 페이지 → 페이지 자체가 아니라 '검색결과에 노출되는지'를 체크
 ANALYSIS_TARGETS = [
-    ("이후 공식 홈페이지 (이후.com)", HOMEPAGE_URL),
-    ("위키백과 - 이후 (소설가)", WIKIPEDIA_URL),
-    ("나무위키 - 이후(소설가)", NAMU_URL),
-    ("다음 검색 - 소설가 이후", DAUM_URL),
-    ("구글 검색 - 소설가 이후", GOOGLE_URL),
-    ("교보문고 - 작가 이후", KYOBO_URL),
-    ("유튜브 - 이후 채널", YOUTUBE_URL),
+    ("이후 공식 홈페이지 (이후.com)", HOMEPAGE_URL, "owned"),
+    ("위키백과 - 이후 (소설가)", WIKIPEDIA_URL, "profile"),
+    ("나무위키 - 이후(소설가)", NAMU_URL, "profile"),
+    ("다음 검색 - 소설가 이후", DAUM_URL, "serp"),
+    ("구글 검색 - 소설가 이후", GOOGLE_URL, "serp"),
+    ("교보문고 - 작가 이후", KYOBO_URL, "profile"),
+    ("유튜브 - 이후 채널", YOUTUBE_URL, "profile"),
 ]
 
 # 네이버 검색 URL
