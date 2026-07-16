@@ -174,12 +174,13 @@ SERP_HTML = ("<html><head><title>소설가 이후 - 검색</title></head><body>"
              + "x" * 30000 + "</body></html>")
 
 
-def test_serp_kind_checks_exposure_not_meta_tags(monkeypatch):
-    """검색결과 페이지는 메타태그 대신 '우리 페이지 노출 여부'를 평가해야 함."""
+def test_serp_scraping_checks_exposure_not_meta_tags(monkeypatch):
+    """스크래핑 SERP(다음)는 메타태그 대신 '우리 페이지 노출 여부'를 평가해야 함."""
     import seo_analyzer
     monkeypatch.setattr(seo_analyzer, "fetch_page", _mock_fetch(SERP_HTML))
-    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    r = analyze_seo("https://search.daum.net/search?w=tot&q=x", "다음 검색", kind="serp")
     assert r["kind"] == "serp"
+    assert r["measurable"] is True
     keys = {c["key"] for c in r["checks"]}
     # 온페이지 체크리스트가 적용되지 않아야 함
     assert "meta_description" not in keys and "og_title" not in keys
@@ -187,18 +188,74 @@ def test_serp_kind_checks_exposure_not_meta_tags(monkeypatch):
     assert by_label.get("검색결과 노출: 위키백과 문서") is True
     assert by_label.get("검색결과 노출: 교보문고 작가 페이지") is True
     assert by_label.get("검색결과 노출: 공식 홈페이지 (이후.com)") is False
-    # 홈페이지 미노출 권고에는 검색엔진 등록 안내가 포함돼야 함
-    assert any("Search Console" in rec for rec in r["recommendations"])
+    # 홈페이지 미노출 권고에는 검색엔진(다음) 등록 안내가 포함돼야 함
+    assert any("검색등록" in rec for rec in r["recommendations"])
 
 
-def test_serp_blocked_page_gives_notice_not_false_recs(monkeypatch):
-    """봇 차단으로 축소된 SERP 응답이면 오탐 권고 대신 안내만 남김."""
+def test_serp_blocked_page_is_unmeasurable(monkeypatch):
+    """봇 차단으로 축소된 SERP 응답이면 0점 실패 체크 대신 '측정 불가' 처리."""
     import seo_analyzer
     tiny = "<html><body>blocked</body></html>"
     monkeypatch.setattr(seo_analyzer, "fetch_page", _mock_fetch(tiny, content_length=500))
-    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    r = analyze_seo("https://search.daum.net/search?w=tot&q=x", "다음 검색", kind="serp")
+    assert r["measurable"] is False
+    assert r["checks"] == [] and r["total"] == 0   # 실패 체크로 0점을 만들지 않음
     assert len(r["recommendations"]) == 1
     assert "차단" in r["recommendations"][0]
+
+
+def test_serp_google_uses_api_no_key_is_unmeasurable(monkeypatch):
+    """구글 SERP는 API 키가 없으면 스크래핑하지 말고 '측정 불가' + 설정 안내."""
+    import seo_analyzer
+    monkeypatch.delenv("GOOGLE_CSE_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CSE_CX", raising=False)
+
+    def no_fetch(url):
+        raise AssertionError("구글 SERP는 페이지를 fetch 하면 안 됨 (API 사용)")
+    monkeypatch.setattr(seo_analyzer, "fetch_page", no_fetch)
+    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    assert r["measurable"] is False
+    assert r["checks"] == [] and r["score"] == 0 and r["total"] == 0
+    assert len(r["recommendations"]) == 1
+    assert "GOOGLE_CSE_API_KEY" in r["recommendations"][0]
+
+
+def test_serp_google_api_ok_builds_checks(monkeypatch):
+    """구글 API 정상 응답이면 기존과 동일한 checks 구조로 결과 생성."""
+    import seo_analyzer
+
+    def fake_api(query, needles_map, max_pages=2):
+        return {"status": "ok",
+                "found": {name: name in ("위키백과 문서", "교보문고 작가 페이지")
+                          for name in needles_map},
+                "relevance_text": "이후 이후 소설가 작품",
+                "total_results": 10,
+                "api_meta": {"response_time": 120, "content_length": 5000}}
+    monkeypatch.setattr(seo_analyzer.serp_checker, "check_google_presence", fake_api)
+    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    assert r["measurable"] is True
+    assert r["total"] == 6   # 관련성 1 + 노출 5
+    by_label = {c["label"]: c["passed"] for c in r["checks"]}
+    assert by_label.get("검색결과 노출: 위키백과 문서") is True
+    assert by_label.get("검색결과 노출: 공식 홈페이지 (이후.com)") is False
+    assert any("Search Console" in rec for rec in r["recommendations"])
+
+
+def test_unmeasurable_renders_as_no_score(tmp_path):
+    """measurable=False 결과는 HTML/MD 리포트에서 0점 대신 '측정 불가'로 표시."""
+    unm = {"label": "구글 검색 - 소설가 이후", "url": "https://www.google.com/search?q=x",
+           "kind": "serp", "meta": {"status": None}, "checks": [],
+           "score": 0, "passed": 0, "total": 0, "measurable": False,
+           "recommendations": ["GOOGLE_CSE_API_KEY 미설정: ..."]}
+    out = tmp_path / "u.html"
+    rg.generate_html_report([unm], None, str(out))
+    html = out.read_text(encoding="utf-8")
+    assert "측정 불가" in html
+    assert "0점" not in html
+    md_out = tmp_path / "u.md"
+    rg.generate_markdown_report([unm], None, str(md_out))
+    md = md_out.read_text(encoding="utf-8")
+    assert "측정 불가" in md and "0점" not in md
 
 
 def test_owned_kind_keeps_full_checklist(monkeypatch):

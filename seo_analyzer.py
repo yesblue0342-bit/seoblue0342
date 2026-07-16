@@ -17,8 +17,10 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
+import serp_checker
 from config import (
     HEADERS, HOMEPAGE_URL, WIKIPEDIA_URL, CRAWL_DELAY, ANALYSIS_TARGETS,
+    GOOGLE_SEARCH_QUERY,
 )
 
 
@@ -306,41 +308,94 @@ def _analyze_profile(soup) -> _Collector:
 
 
 # ──────────────────────────────────────────────────────────────
-#  serp: 검색 결과 페이지 — '노출 여부' 체크
+#  serp: 검색 결과 — '노출 여부' 체크
+#  - 구글: Custom Search JSON API 사용 (스크래핑은 봇 차단으로 거짓 음성)
+#  - 다음: 공식 API가 없어 스크래핑 유지, 봇 차단 감지 시 '측정 불가' 처리
 # ──────────────────────────────────────────────────────────────
-def _analyze_serp(soup, url: str) -> _Collector:
-    c = _Collector()
-    html = str(soup)
-    body_text = soup.get_text(" ", strip=True)
+def _serp_unmeasurable(url: str, page_label: str, meta: dict, reason: str) -> dict:
+    """측정 불가 결과 — 실패 체크로 0점을 찍는 대신 원인 안내만 남긴다."""
+    return {
+        "label": page_label,
+        "url": url,
+        "kind": "serp",
+        "meta": meta,
+        "checks": [],
+        "score": 0,
+        "passed": 0,
+        "total": 0,
+        "measurable": False,
+        "recommendations": [reason],
+    }
 
-    # 검색결과가 '소설가 이후'와 관련된 내용인지
-    relevant = KEYWORD in body_text and any(alt in body_text for alt in KEYWORD_ALT)
+
+def _serp_collector(url: str, relevance_text: str, found: dict) -> _Collector:
+    """SERP 체크 결과(관련성 + 노출 5건)를 공통 checks 구조로 변환."""
+    c = _Collector()
+    relevant = KEYWORD in relevance_text and any(alt in relevance_text for alt in KEYWORD_ALT)
     c.add("serp_relevance", relevant,
-          f"'{KEYWORD}' {body_text.count(KEYWORD)}회 언급",
+          f"'{KEYWORD}' {relevance_text.count(KEYWORD)}회 언급",
           "검색결과에 소설가 관련 내용이 부족합니다. 동명 키워드에 밀리고 있으므로 "
           "'이후 소설가' 표기를 모든 채널에서 일관되게 사용하고 콘텐츠 발행을 늘리세요.")
-
-    # 주요 페이지가 검색결과에 노출되는지
     for name, needles, advice in SERP_PRESENCE_TARGETS:
-        found = any(n in html for n in needles)
         detail = advice or _serp_engine_tip(url)
-        c.add(f"serp_{needles[0]}", found,
-              "노출됨" if found else "",
+        c.add(f"serp_{needles[0]}", found.get(name, False),
+              "노출됨" if found.get(name) else "",
               f"{name}이(가) 검색결과에 보이지 않습니다. {detail}",
               label=f"검색결과 노출: {name}")
-
     return c
+
+
+def _analyze_serp_google_api(url: str, page_label: str) -> dict:
+    """구글 SERP 노출 체크 — Custom Search API (페이지 fetch 없음)."""
+    needles_map = {name: needles for name, needles, _ in SERP_PRESENCE_TARGETS}
+    api = serp_checker.check_google_presence(GOOGLE_SEARCH_QUERY, needles_map)
+
+    meta = {"url": url, "status": None, "response_time": None, "content_length": 0}
+    if api["status"] == "no_api_key":
+        return _serp_unmeasurable(url, page_label, meta,
+            "GOOGLE_CSE_API_KEY 미설정: Google Cloud Console에서 Custom Search API 키와 "
+            "검색엔진 ID(cx)를 발급해 환경변수(GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX)로 설정하세요. "
+            "설정 방법은 deploy/README.md 참고.")
+    if api["status"] != "ok":
+        return _serp_unmeasurable(url, page_label, meta,
+            f"Google Custom Search API 호출 실패: {api.get('detail', '알 수 없는 오류')} "
+            "— 일시적 오류면 다음 분석에서 재시도됩니다.")
+
+    api_meta = api.get("api_meta", {})
+    meta.update(status=200,
+                response_time=api_meta.get("response_time"),
+                content_length=api_meta.get("content_length", 0),
+                final_url=url)
+    collector = _serp_collector(url, api.get("relevance_text", ""), api["found"])
+    result = collector.result(page_label, url, meta)
+    result["kind"] = "serp"
+    result["measurable"] = True
+    return result
+
+
+def _analyze_serp(soup, url: str) -> _Collector:
+    """스크래핑 기반 SERP 체크 (다음 등 공식 API가 없는 검색엔진용)."""
+    html = str(soup)
+    body_text = soup.get_text(" ", strip=True)
+    found = {name: any(n in html for n in needles)
+             for name, needles, _ in SERP_PRESENCE_TARGETS}
+    return _serp_collector(url, body_text, found)
 
 
 def analyze_seo(url: str, page_label: str, kind: str = "owned") -> dict:
     """
     단일 페이지 SEO 분석 (kind: owned | profile | serp)
     Returns: {"label", "url", "kind", "checks", "score", "recommendations", ...}
+    serp 결과에는 "measurable" 필드가 추가된다 (False = 측정 불가, 점수 표시 안 함).
     """
+    # 구글 SERP는 스크래핑이 봇 차단으로 거짓 음성을 내므로 Custom Search API 사용
+    if kind == "serp" and "google" in urlparse(url).netloc:
+        return _analyze_serp_google_api(url, page_label)
+
     soup, meta = fetch_page(url)
 
     if soup is None:
-        return {
+        result = {
             "label": page_label,
             "url": url,
             "kind": kind,
@@ -351,16 +406,24 @@ def analyze_seo(url: str, page_label: str, kind: str = "owned") -> dict:
             "total": 0,
             "recommendations": [f"페이지 접근 불가: {meta.get('error', '알 수 없는 오류')}"],
         }
+        if kind == "serp":
+            result["measurable"] = False
+        return result
 
     if kind == "serp":
-        collector = _analyze_serp(soup, url)
-        # 봇 차단/동의 페이지 등으로 정상 SERP가 아니면 오탐 권고 대신 안내만 남김
+        # 봇 차단/동의 페이지 등으로 정상 SERP가 아니면
+        # 실패 체크로 0점을 찍지 않고 '측정 불가'로 처리 (거짓 음성 방지)
         if meta.get("content_length", 0) < 20_000:
-            collector.recommendations = [
-                "검색엔진이 봇 요청을 차단했거나 축소된 페이지를 반환했습니다. "
-                "노출 여부는 브라우저에서 직접 검색해 확인하세요."
-            ]
-    elif kind == "profile":
+            return _serp_unmeasurable(url, page_label, meta,
+                "검색엔진이 봇 요청을 차단했거나 축소된 페이지를 반환해 노출 여부를 "
+                "측정할 수 없습니다. 브라우저에서 직접 검색해 확인하세요.")
+        collector = _analyze_serp(soup, url)
+        result = collector.result(page_label, url, meta)
+        result["kind"] = kind
+        result["measurable"] = True
+        return result
+
+    if kind == "profile":
         collector = _analyze_profile(soup)
     else:
         collector = _analyze_owned(soup, url)

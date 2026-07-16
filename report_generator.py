@@ -169,7 +169,8 @@ def _html_menu(analysis_results, has_rank: bool) -> str:
         )
     for i, r in enumerate(analysis_results):
         score = r.get("score", 0)
-        color = _score_color(score)
+        # 측정 불가(API 키 미설정·봇 차단 등)는 빨간 0점 대신 회색 점으로 표시
+        color = _score_color(score) if r.get("measurable", True) else "#9ca3af"
         label = escape(r.get("label", f"소스 {i+1}"))
         chips.append(
             f"<a href='#{_menu_anchor(i)}'>"
@@ -224,6 +225,8 @@ def _html_seo_section(r: dict, idx: int = 0) -> str:
                 f"<td class='val'>{detail[:120]}</td></tr>"
             )
 
+    measurable = r.get("measurable", True)
+
     recs = "".join(
         f"<div class='rec'>{escape(rec)}</div>" for rec in r.get("recommendations", [])
     ) or "<p class='ok'>🎉 모든 SEO 항목 통과!</p>"
@@ -234,18 +237,29 @@ def _html_seo_section(r: dict, idx: int = 0) -> str:
         f"{meta.get('content_length', 0) // 1024}KB"
     )
 
-    return f"""
-    <div class="card" id="{_menu_anchor(idx)}">
-      <h2>{escape(r.get('label', ''))}</h2>
-      <span class="score-pill" style="background:{color}">{emoji} {score}점
-        &nbsp;<span style="opacity:.85;font-weight:500">
-        ({r.get('passed', 0)}/{r.get('total', 0)} 통과)</span></span>{_kind_badge_html(r.get('kind', ''))}
-      <div class="meta-line">{escape(r.get('url', ''))} · {meta_line}</div>
+    # 측정 불가: 빨간 0점 대신 회색 '측정 불가' 표시 (점수 왜곡 방지)
+    if measurable:
+        pill = (f'<span class="score-pill" style="background:{color}">{emoji} {score}점'
+                f'&nbsp;<span style="opacity:.85;font-weight:500">'
+                f'({r.get("passed", 0)}/{r.get("total", 0)} 통과)</span></span>')
+    else:
+        pill = '<span class="score-pill" style="background:#9ca3af">⚪ 측정 불가</span>'
+
+    checks_table = f"""
       <table>
         <thead><tr><th>상태</th><th>SEO 항목</th><th>현재값 / 권고</th></tr></thead>
         <tbody>{''.join(check_rows)}</tbody>
-      </table>
-      <h3 style="font-size:14px;margin:18px 0 6px;color:#374151">개선 권고
+      </table>""" if check_rows else ""
+
+    recs_title = "개선 권고" if measurable else "안내"
+
+    return f"""
+    <div class="card" id="{_menu_anchor(idx)}">
+      <h2>{escape(r.get('label', ''))}</h2>
+      {pill}{_kind_badge_html(r.get('kind', ''))}
+      <div class="meta-line">{escape(r.get('url', ''))} · {meta_line}</div>
+      {checks_table}
+      <h3 style="font-size:14px;margin:18px 0 6px;color:#374151">{recs_title}
         ({len(r.get('recommendations', []))}건)</h3>
       {recs}
     </div>"""
@@ -328,9 +342,13 @@ def generate_markdown_report(analysis_results, rank_results=None,
     # SEO 섹션
     for r in (analysis_results or []):
         score = r.get("score", 0)
+        if r.get("measurable", True):
+            heading = (f"## {_score_emoji(score)} {r.get('label', '')} — {score}점 "
+                       f"({r.get('passed', 0)}/{r.get('total', 0)} 통과)")
+        else:
+            heading = f"## ⚪ {r.get('label', '')} — 측정 불가"
         lines += [
-            f"## {_score_emoji(score)} {r.get('label', '')} — {score}점 "
-            f"({r.get('passed', 0)}/{r.get('total', 0)} 통과)",
+            heading,
             "",
             f"- URL: {r.get('url', '')}",
         ]

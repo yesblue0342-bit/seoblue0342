@@ -26,6 +26,10 @@ NAMU_URL = "https://namu.wiki/w/%EC%9D%B4%ED%9B%84(%EC%86%8C%EC%84%A4%EA%B0%80)"
 DAUM_URL = "https://search.daum.net/search?w=tot&q=%EC%86%8C%EC%84%A4%EA%B0%80%EC%9D%B4%ED%9B%84"
 KYOBO_URL = "https://store.kyobobook.co.kr/person/detail/1000809404"
 GOOGLE_URL = "https://www.google.com/search?q=%EC%86%8C%EC%84%A4%EA%B0%80%EC%9D%B4%ED%9B%84"
+
+# 구글 SERP 노출 체크용 검색어 (Custom Search API에 전달).
+# GOOGLE_URL 은 대시보드 카드의 링크 표시용으로만 유지한다.
+GOOGLE_SEARCH_QUERY = "소설가 이후"
 YOUTUBE_URL = "https://www.youtube.com/channel/UCQdIJKAOKVI8pKIsvcFBEKA"
 
 # 대시보드 분석 대상 (라벨, URL, 페이지 유형).

@@ -79,11 +79,15 @@ def print_seo_analysis(results: list[dict]):
             score_style = "bold red"
             score_emoji = "🔴"
 
-        # 점수 패널
+        # 점수 패널 (측정 불가면 빨간 0점 대신 '측정 불가' 표시)
         score_text = Text()
-        score_text.append(f"{score_emoji} SEO 점수: ", style="bold")
-        score_text.append(f"{score}점", style=score_style)
-        score_text.append(f" ({r['passed']}/{r['total']} 통과)", style="dim")
+        if r.get("measurable", True):
+            score_text.append(f"{score_emoji} SEO 점수: ", style="bold")
+            score_text.append(f"{score}점", style=score_style)
+            score_text.append(f" ({r['passed']}/{r['total']} 통과)", style="dim")
+        else:
+            score_text.append("⚪ 측정 불가", style="bold")
+            score_text.append(" (원인은 아래 안내 참조)", style="dim")
 
         meta = r.get("meta", {})
         meta_text = (
@@ -123,7 +127,10 @@ def print_seo_analysis(results: list[dict]):
         console.print(table)
 
         # 권고사항
-        if r["recommendations"]:
+        if r["recommendations"] and not r.get("measurable", True):
+            for rec in r["recommendations"]:
+                console.print(f"  [yellow]ℹ️  {rec[:110]}[/yellow]")
+        elif r["recommendations"]:
             console.print(f"  [bold red]⚠️  개선 필요 항목 {len(r['recommendations'])}건[/bold red]")
             for i, rec in enumerate(r["recommendations"][:5], 1):
                 console.print(f"  [red]{i}.[/red] {rec[:90]}")
