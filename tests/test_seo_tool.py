@@ -61,7 +61,7 @@ def test_config_extra_sources_present():
 
 def test_analysis_targets_cover_all_sources():
     # 대시보드 분석 대상(=카드/메뉴)에 7개 정보 소스가 모두 포함돼야 함
-    urls = [u for _, u in config.ANALYSIS_TARGETS]
+    urls = [t[1] for t in config.ANALYSIS_TARGETS]
     for u in (config.HOMEPAGE_URL, config.WIKIPEDIA_URL, config.NAMU_URL,
               config.DAUM_URL, config.KYOBO_URL, config.GOOGLE_URL,
               config.YOUTUBE_URL):
@@ -69,21 +69,33 @@ def test_analysis_targets_cover_all_sources():
     assert len(config.ANALYSIS_TARGETS) >= 7
 
 
+def test_analysis_targets_have_valid_kinds():
+    # 각 분석 대상에 유효한 페이지 유형(owned/profile/serp)이 지정돼야 함
+    kinds = {t[2] for t in config.ANALYSIS_TARGETS}
+    assert kinds <= {"owned", "profile", "serp"}
+    # 홈페이지만 owned, 검색결과 페이지(구글·다음)는 serp
+    by_url = {t[1]: t[2] for t in config.ANALYSIS_TARGETS}
+    assert by_url[config.HOMEPAGE_URL] == "owned"
+    assert by_url[config.GOOGLE_URL] == "serp"
+    assert by_url[config.DAUM_URL] == "serp"
+    assert by_url[config.KYOBO_URL] == "profile"
+
+
 def test_run_full_analysis_uses_targets(monkeypatch):
     # run_full_analysis 가 ANALYSIS_TARGETS 를 그대로 순회하는지 (네트워크 없이 검증)
     import seo_analyzer
     seen = []
 
-    def fake_analyze(url, label):
-        seen.append((label, url))
-        return {"label": label, "url": url, "meta": {}, "checks": [],
+    def fake_analyze(url, label, kind="owned"):
+        seen.append((label, url, kind))
+        return {"label": label, "url": url, "kind": kind, "meta": {}, "checks": [],
                 "score": 0, "passed": 0, "total": 0, "recommendations": []}
 
     monkeypatch.setattr(seo_analyzer, "analyze_seo", fake_analyze)
     monkeypatch.setattr(seo_analyzer.time, "sleep", lambda *_: None)
     results = seo_analyzer.run_full_analysis()
     assert len(results) == len(config.ANALYSIS_TARGETS)
-    labels = [lbl for lbl, _ in seen]
+    labels = [lbl for lbl, _, _ in seen]
     assert any("나무위키" in l for l in labels)
     assert any("다음" in l for l in labels)
     assert any("교보문고" in l for l in labels)
@@ -121,6 +133,83 @@ def test_seo_checks_count():
     # 메타/OG/JSON-LD 등 핵심 항목 정의 존재
     assert len(SEO_CHECKS) >= 13
     assert "structured_data" in SEO_CHECKS
+
+
+# ── 2-1. 페이지 유형별 분석 (네트워크 없이 목 HTML로 검증) ────
+def _mock_fetch(html: str, content_length: int = 50_000):
+    from bs4 import BeautifulSoup
+
+    def fake(url):
+        meta = {"url": url, "status": 200, "response_time": 10,
+                "content_length": content_length, "final_url": url}
+        return BeautifulSoup(html, "lxml"), meta
+    return fake
+
+
+PROFILE_HTML = """<html lang="ko"><head><title>어떤 작가 페이지</title>
+<meta property="og:description" content="짧은 설명"></head>
+<body><p>본문</p></body></html>"""
+
+
+def test_profile_kind_skips_non_actionable_checks(monkeypatch):
+    """외부 프로필 페이지에는 메타키워드·canonical·viewport 등
+    플랫폼 소관 항목에 대한 권고가 나오면 안 됨 (권고 노이즈 버그 수정)."""
+    import seo_analyzer
+    monkeypatch.setattr(seo_analyzer, "fetch_page", _mock_fetch(PROFILE_HTML))
+    r = analyze_seo("https://store.kyobobook.co.kr/person/1", "교보문고", kind="profile")
+    keys = {c["key"] for c in r["checks"]}
+    for banned in ("meta_keywords", "canonical", "mobile_viewport",
+                   "internal_links", "h1", "structured_data", "lang"):
+        assert banned not in keys
+    assert r["kind"] == "profile"
+    # 실행 불가능한 'Title 태그를 추가하세요'류 문구가 없어야 함
+    assert not any("Canonical" in rec or "메타 키워드" in rec or "Viewport" in rec
+                   for rec in r["recommendations"])
+
+
+SERP_HTML = ("<html><head><title>소설가 이후 - 검색</title></head><body>"
+             + "<p>이후 소설가 이후 작가 이후</p>"
+             + "<a href='https://ko.wikipedia.org/wiki/x'>위키</a>"
+             + "<a href='https://store.kyobobook.co.kr/person/1'>교보</a>"
+             + "x" * 30000 + "</body></html>")
+
+
+def test_serp_kind_checks_exposure_not_meta_tags(monkeypatch):
+    """검색결과 페이지는 메타태그 대신 '우리 페이지 노출 여부'를 평가해야 함."""
+    import seo_analyzer
+    monkeypatch.setattr(seo_analyzer, "fetch_page", _mock_fetch(SERP_HTML))
+    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    assert r["kind"] == "serp"
+    keys = {c["key"] for c in r["checks"]}
+    # 온페이지 체크리스트가 적용되지 않아야 함
+    assert "meta_description" not in keys and "og_title" not in keys
+    by_label = {c["label"]: c["passed"] for c in r["checks"]}
+    assert by_label.get("검색결과 노출: 위키백과 문서") is True
+    assert by_label.get("검색결과 노출: 교보문고 작가 페이지") is True
+    assert by_label.get("검색결과 노출: 공식 홈페이지 (이후.com)") is False
+    # 홈페이지 미노출 권고에는 검색엔진 등록 안내가 포함돼야 함
+    assert any("Search Console" in rec for rec in r["recommendations"])
+
+
+def test_serp_blocked_page_gives_notice_not_false_recs(monkeypatch):
+    """봇 차단으로 축소된 SERP 응답이면 오탐 권고 대신 안내만 남김."""
+    import seo_analyzer
+    tiny = "<html><body>blocked</body></html>"
+    monkeypatch.setattr(seo_analyzer, "fetch_page", _mock_fetch(tiny, content_length=500))
+    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    assert len(r["recommendations"]) == 1
+    assert "차단" in r["recommendations"][0]
+
+
+def test_owned_kind_keeps_full_checklist(monkeypatch):
+    """직접 관리 페이지(홈페이지)는 기존 전체 체크리스트 유지."""
+    import seo_analyzer
+    monkeypatch.setattr(seo_analyzer, "fetch_page", _mock_fetch(PROFILE_HTML))
+    r = analyze_seo("https://xn--hu5b23z.com/", "홈페이지", kind="owned")
+    keys = {c["key"] for c in r["checks"]}
+    assert {"title", "meta_keywords", "canonical", "mobile_viewport",
+            "structured_data", "internal_links"} <= keys
+    assert r["total"] >= 15
 
 
 # ── 3. 리포트 생성기 (HTML) ──────────────────────────────────

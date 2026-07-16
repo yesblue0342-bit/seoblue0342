@@ -178,6 +178,31 @@ def _html_menu(analysis_results, has_rank: bool) -> str:
     return f"<nav class='menu'>{''.join(chips)}</nav>"
 
 
+# 페이지 유형 배지 (label, color, 설명) — seo_analyzer 의 kind 와 대응
+_KIND_BADGES = {
+    "owned": ("직접 관리", "#16a34a",
+              "우리가 직접 수정할 수 있는 페이지 — 권고사항을 홈페이지에 바로 적용하세요."),
+    "profile": ("외부 프로필", "#2563eb",
+                "플랫폼이 관리하는 페이지 — HTML 직접 수정은 불가하며, "
+                "프로필·본문 정보 보강 중심으로 평가합니다."),
+    "serp": ("검색 노출", "#7c3aed",
+             "검색 결과 페이지 자체의 SEO가 아니라, 검색결과에 '이후' 관련 "
+             "페이지가 노출되는지를 평가합니다."),
+}
+
+
+def _kind_badge_html(kind: str) -> str:
+    if kind not in _KIND_BADGES:
+        return ""
+    label, color, note = _KIND_BADGES[kind]
+    return (
+        f"<span style='display:inline-block;font-size:12px;font-weight:700;color:#fff;"
+        f"background:{color};border-radius:999px;padding:3px 10px;margin-left:8px;"
+        f"vertical-align:middle'>{label}</span>"
+        f"<div style='font-size:13px;color:#6b7280;margin:8px 0 0'>ℹ️ {escape(note)}</div>"
+    )
+
+
 def _html_seo_section(r: dict, idx: int = 0) -> str:
     score = r.get("score", 0)
     meta = r.get("meta", {})
@@ -214,7 +239,7 @@ def _html_seo_section(r: dict, idx: int = 0) -> str:
       <h2>{escape(r.get('label', ''))}</h2>
       <span class="score-pill" style="background:{color}">{emoji} {score}점
         &nbsp;<span style="opacity:.85;font-weight:500">
-        ({r.get('passed', 0)}/{r.get('total', 0)} 통과)</span></span>
+        ({r.get('passed', 0)}/{r.get('total', 0)} 통과)</span></span>{_kind_badge_html(r.get('kind', ''))}
       <div class="meta-line">{escape(r.get('url', ''))} · {meta_line}</div>
       <table>
         <thead><tr><th>상태</th><th>SEO 항목</th><th>현재값 / 권고</th></tr></thead>
@@ -308,6 +333,11 @@ def generate_markdown_report(analysis_results, rank_results=None,
             f"({r.get('passed', 0)}/{r.get('total', 0)} 통과)",
             "",
             f"- URL: {r.get('url', '')}",
+        ]
+        kind = r.get("kind", "")
+        if kind in _KIND_BADGES:
+            lines.append(f"- 유형: **{_KIND_BADGES[kind][0]}** — {_KIND_BADGES[kind][2]}")
+        lines += [
             "",
             "| 상태 | SEO 항목 | 현재값 / 권고 |",
             "|------|----------|----------------|",

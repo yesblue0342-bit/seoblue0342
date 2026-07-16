@@ -10,6 +10,8 @@ from rich.text import Text
 from rich import box
 from datetime import datetime
 
+from seo_analyzer import PAGE_KIND_NOTES
+
 
 console = Console()
 
@@ -90,8 +92,12 @@ def print_seo_analysis(results: list[dict]):
             f"크기: {meta.get('content_length', 0)//1024}KB"
         )
 
+        # 페이지 유형 안내 (owned/profile/serp — seo_analyzer.PAGE_KIND_NOTES)
+        kind_note = PAGE_KIND_NOTES.get(r.get("kind", ""))
+        kind_line = f"\n[dim italic]ℹ️  {kind_note}[/dim italic]" if kind_note else ""
+
         console.print(Panel(
-            f"{score_text}\n[dim]{meta_text}[/dim]",
+            f"{score_text}\n[dim]{meta_text}[/dim]{kind_line}",
             title=f"[bold cyan]{r['label']}[/bold cyan]",
             subtitle=f"[dim]{r['url'][:70]}[/dim]",
             border_style="cyan",
