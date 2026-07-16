@@ -7,10 +7,9 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/opt/seoblue0342
 Environment=SEO_DATA_DIR=/opt/seoblue0342/data
-# 구글 SERP 노출 체크용 Custom Search API 키 (발급 절차: deploy/README.md 참고)
+# 구글 SERP 노출 체크용 Serper.dev API 키 (발급 절차: deploy/README.md 참고)
 # 실제 값을 넣고 주석 해제 후 `systemctl daemon-reload && systemctl restart seoblue0342`
-# Environment=GOOGLE_CSE_API_KEY=발급받은_API_키
-# Environment=GOOGLE_CSE_CX=검색엔진_ID
+# Environment=SERPER_API_KEY=발급받은_API_키
 ExecStart=/opt/seoblue0342/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8842 webapp:app --timeout 120
 Restart=on-failure
 RestartSec=5

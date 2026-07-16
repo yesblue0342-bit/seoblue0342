@@ -207,8 +207,7 @@ def test_serp_blocked_page_is_unmeasurable(monkeypatch):
 def test_serp_google_uses_api_no_key_is_unmeasurable(monkeypatch):
     """구글 SERP는 API 키가 없으면 스크래핑하지 말고 '측정 불가' + 설정 안내."""
     import seo_analyzer
-    monkeypatch.delenv("GOOGLE_CSE_API_KEY", raising=False)
-    monkeypatch.delenv("GOOGLE_CSE_CX", raising=False)
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
 
     def no_fetch(url):
         raise AssertionError("구글 SERP는 페이지를 fetch 하면 안 됨 (API 사용)")
@@ -217,17 +216,19 @@ def test_serp_google_uses_api_no_key_is_unmeasurable(monkeypatch):
     assert r["measurable"] is False
     assert r["checks"] == [] and r["score"] == 0 and r["total"] == 0
     assert len(r["recommendations"]) == 1
-    assert "GOOGLE_CSE_API_KEY" in r["recommendations"][0]
+    assert "SERPER_API_KEY" in r["recommendations"][0]
 
 
 def test_serp_google_api_ok_builds_checks(monkeypatch):
-    """구글 API 정상 응답이면 기존과 동일한 checks 구조로 결과 생성."""
+    """구글 Serper API 정상 응답이면 기존과 동일한 checks 구조로 결과 생성.
+    needle 매칭은 seo_analyzer가 links 리스트를 상대로 수행한다."""
     import seo_analyzer
 
-    def fake_api(query, needles_map, max_pages=2):
+    def fake_api(query, num=10):
         return {"status": "ok",
-                "found": {name: name in ("위키백과 문서", "교보문고 작가 페이지")
-                          for name in needles_map},
+                # 위키·교보만 노출, 홈페이지·나무위키·유튜브는 미노출
+                "links": ["https://ko.wikipedia.org/wiki/이후", "이후 (소설가)",
+                          "https://store.kyobobook.co.kr/person/1", "이후 소설가"],
                 "relevance_text": "이후 이후 소설가 작품",
                 "total_results": 10,
                 "api_meta": {"response_time": 120, "content_length": 5000}}
@@ -237,8 +238,23 @@ def test_serp_google_api_ok_builds_checks(monkeypatch):
     assert r["total"] == 6   # 관련성 1 + 노출 5
     by_label = {c["label"]: c["passed"] for c in r["checks"]}
     assert by_label.get("검색결과 노출: 위키백과 문서") is True
+    assert by_label.get("검색결과 노출: 교보문고 작가 페이지") is True
     assert by_label.get("검색결과 노출: 공식 홈페이지 (이후.com)") is False
     assert any("Search Console" in rec for rec in r["recommendations"])
+
+
+def test_serp_google_api_error_is_unmeasurable(monkeypatch):
+    """Serper 호출 실패(403/429 등)면 0점 대신 측정 불가 + 오류 안내."""
+    import seo_analyzer
+
+    def fake_api(query, num=10):
+        return {"status": "error", "detail": "HTTP 403: Unauthorized"}
+    monkeypatch.setattr(seo_analyzer.serp_checker, "check_google_presence", fake_api)
+    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    assert r["measurable"] is False
+    assert r["checks"] == [] and r["total"] == 0
+    assert len(r["recommendations"]) == 1
+    assert "Serper" in r["recommendations"][0] and "403" in r["recommendations"][0]
 
 
 def test_unmeasurable_renders_as_no_score(tmp_path):
@@ -246,7 +262,7 @@ def test_unmeasurable_renders_as_no_score(tmp_path):
     unm = {"label": "구글 검색 - 소설가 이후", "url": "https://www.google.com/search?q=x",
            "kind": "serp", "meta": {"status": None}, "checks": [],
            "score": 0, "passed": 0, "total": 0, "measurable": False,
-           "recommendations": ["GOOGLE_CSE_API_KEY 미설정: ..."]}
+           "recommendations": ["SERPER_API_KEY 미설정: ..."]}
     out = tmp_path / "u.html"
     rg.generate_html_report([unm], None, str(out))
     html = out.read_text(encoding="utf-8")

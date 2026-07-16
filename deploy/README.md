@@ -31,15 +31,17 @@ SEO 분석 도구가 지적한 홈페이지 누락 항목(메타 디스크립션
 
 ---
 
-## 구글 SERP 노출 체크 — Custom Search API 키 설정
+## 구글 SERP 노출 체크 — Serper.dev API 키 설정
 
-대시보드의 "구글 검색" 카드는 스크래핑 대신 **Google Custom Search JSON API**를 사용합니다.
-키가 없으면 카드가 "측정 불가"로 표시됩니다 (무료 쿼터: 일 100쿼리 — 하루 1회 분석이면 충분).
+대시보드의 "구글 검색" 카드는 스크래핑 대신 **[Serper.dev](https://serper.dev) API**를 사용합니다.
+키가 없으면 카드가 "측정 불가"로 표시됩니다 (가입 시 무료 크레딧 2,500회 — 하루 수 쿼리면 넉넉함).
 
-1. [Google Cloud Console](https://console.cloud.google.com/apis/library/customsearch.googleapis.com)에서 **Custom Search API 활성화** 후 API 키 발급 → `GOOGLE_CSE_API_KEY`
-2. [programmablesearchengine.google.com](https://programmablesearchengine.google.com)에서 검색엔진 생성 (**"전체 웹 검색" ON**) 후 검색엔진 ID(cx) 복사 → `GOOGLE_CSE_CX`
-3. 서버에서 `/etc/systemd/system/seoblue0342.service`의 `Environment=GOOGLE_CSE_...` 주석을 실제 값으로 해제하고
-   `sudo systemctl daemon-reload && sudo systemctl restart seoblue0342`
+> Google Custom Search JSON API는 2025년부터 신규 프로젝트에 닫혀(호출 시 403) 사용할 수 없어
+> 종료 리스크가 없는 서드파티 SERP API인 Serper로 전환했습니다.
+
+1. [serper.dev](https://serper.dev) 가입 후 대시보드에서 API 키 복사 → `SERPER_API_KEY`
+2. 서버에서 `/etc/systemd/system/seoblue0342.service`의 `Environment=SERPER_API_KEY=...` 주석을
+   실제 값으로 해제하고 `sudo systemctl daemon-reload && sudo systemctl restart seoblue0342`
 
 ---
 

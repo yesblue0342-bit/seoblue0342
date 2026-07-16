@@ -309,7 +309,7 @@ def _analyze_profile(soup) -> _Collector:
 
 # ──────────────────────────────────────────────────────────────
 #  serp: 검색 결과 — '노출 여부' 체크
-#  - 구글: Custom Search JSON API 사용 (스크래핑은 봇 차단으로 거짓 음성)
+#  - 구글: Serper.dev API 사용 (스크래핑은 봇 차단으로 거짓 음성)
 #  - 다음: 공식 API가 없어 스크래핑 유지, 봇 차단 감지 시 '측정 불가' 처리
 # ──────────────────────────────────────────────────────────────
 def _serp_unmeasurable(url: str, page_label: str, meta: dict, reason: str) -> dict:
@@ -346,27 +346,30 @@ def _serp_collector(url: str, relevance_text: str, found: dict) -> _Collector:
 
 
 def _analyze_serp_google_api(url: str, page_label: str) -> dict:
-    """구글 SERP 노출 체크 — Custom Search API (페이지 fetch 없음)."""
-    needles_map = {name: needles for name, needles, _ in SERP_PRESENCE_TARGETS}
-    api = serp_checker.check_google_presence(GOOGLE_SEARCH_QUERY, needles_map)
+    """구글 SERP 노출 체크 — Serper.dev API (페이지 fetch 없음)."""
+    api = serp_checker.check_google_presence(GOOGLE_SEARCH_QUERY)
 
     meta = {"url": url, "status": None, "response_time": None, "content_length": 0}
     if api["status"] == "no_api_key":
         return _serp_unmeasurable(url, page_label, meta,
-            "GOOGLE_CSE_API_KEY 미설정: Google Cloud Console에서 Custom Search API 키와 "
-            "검색엔진 ID(cx)를 발급해 환경변수(GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX)로 설정하세요. "
-            "설정 방법은 deploy/README.md 참고.")
+            "SERPER_API_KEY 미설정: serper.dev에 가입해 API 키를 발급받아 "
+            "환경변수(SERPER_API_KEY)로 설정하세요. 설정 방법은 deploy/README.md 참고.")
     if api["status"] != "ok":
         return _serp_unmeasurable(url, page_label, meta,
-            f"Google Custom Search API 호출 실패: {api.get('detail', '알 수 없는 오류')} "
+            f"Serper.dev API 호출 실패: {api.get('detail', '알 수 없는 오류')} "
             "— 일시적 오류면 다음 분석에서 재시도됩니다.")
+
+    # Serper가 돌려준 상위 결과 링크/텍스트 안에서 각 대상 노출 여부를 판정
+    haystack = " ".join(api.get("links", []))
+    found = {name: any(n in haystack for n in needles)
+             for name, needles, _ in SERP_PRESENCE_TARGETS}
 
     api_meta = api.get("api_meta", {})
     meta.update(status=200,
                 response_time=api_meta.get("response_time"),
                 content_length=api_meta.get("content_length", 0),
                 final_url=url)
-    collector = _serp_collector(url, api.get("relevance_text", ""), api["found"])
+    collector = _serp_collector(url, api.get("relevance_text", ""), found)
     result = collector.result(page_label, url, meta)
     result["kind"] = "serp"
     result["measurable"] = True
@@ -388,7 +391,7 @@ def analyze_seo(url: str, page_label: str, kind: str = "owned") -> dict:
     Returns: {"label", "url", "kind", "checks", "score", "recommendations", ...}
     serp 결과에는 "measurable" 필드가 추가된다 (False = 측정 불가, 점수 표시 안 함).
     """
-    # 구글 SERP는 스크래핑이 봇 차단으로 거짓 음성을 내므로 Custom Search API 사용
+    # 구글 SERP는 스크래핑이 봇 차단으로 거짓 음성을 내므로 Serper.dev API 사용
     if kind == "serp" and "google" in urlparse(url).netloc:
         return _analyze_serp_google_api(url, page_label)
 
