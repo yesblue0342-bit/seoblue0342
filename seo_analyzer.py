@@ -67,7 +67,10 @@ SERP_PRESENCE_TARGETS = [
      "나무위키 문서 내용(약력·작품 목록)을 보강하고 다른 문서에서 링크되도록 하세요."),
     ("교보문고 작가 페이지", ["kyobobook.co.kr"],
      "출판사를 통해 교보문고 작가 정보(소개·사진·대표작) 등록/갱신을 요청하세요."),
-    ("유튜브 채널", ["UCQdIJKAOKVI8pKIsvcFBEKA", "youtube.com/@"],
+    # 채널ID·@handle뿐 아니라 개별 영상(watch)·일반 youtube.com 링크도 노출로 인정
+    # (Serper 결과에는 채널 홈이 아니라 영상 링크로 노출되는 경우가 많음)
+    ("유튜브 채널", ["UCQdIJKAOKVI8pKIsvcFBEKA", "youtube.com/@",
+                 "youtube.com/watch", "youtube.com"],
      "유튜브 채널명·소개에 '이후 소설가' 키워드를 포함하고 영상을 정기적으로 올리세요."),
 ]
 

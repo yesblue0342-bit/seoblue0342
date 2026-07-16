@@ -243,6 +243,29 @@ def test_serp_google_api_ok_builds_checks(monkeypatch):
     assert any("Search Console" in rec for rec in r["recommendations"])
 
 
+def test_serp_youtube_watch_link_counts_as_exposed(monkeypatch):
+    """유튜브가 채널ID/@handle 없이 영상 링크(watch?v=...)로만 노출돼도
+    '유튜브 노출됨'으로 판정돼야 함 (거짓 음성 수정)."""
+    import seo_analyzer
+
+    def fake_api(query, num=10):
+        return {"status": "ok",
+                # 채널 홈이 아니라 개별 영상 링크로만 노출된 실제 케이스
+                "links": ["https://www.youtube.com/watch?v=1qUVtfqvAwE",
+                          "[MV] 소설가 이후 - 짠짠짠",
+                          "https://www.youtube.com/watch?v=xc2ivmdltmE"],
+                "relevance_text": "이후 소설가 이후",
+                "total_results": 10,
+                "api_meta": {"response_time": 100, "content_length": 4000}}
+    monkeypatch.setattr(seo_analyzer.serp_checker, "check_google_presence", fake_api)
+    r = analyze_seo("https://www.google.com/search?q=x", "구글 검색", kind="serp")
+    by_label = {c["label"]: c["passed"] for c in r["checks"]}
+    assert by_label.get("검색결과 노출: 유튜브 채널") is True
+    # 유튜브 링크만 있으므로 다른 타깃은 여전히 미노출 (회귀 없음 확인)
+    assert by_label.get("검색결과 노출: 위키백과 문서") is False
+    assert by_label.get("검색결과 노출: 교보문고 작가 페이지") is False
+
+
 def test_serp_google_api_error_is_unmeasurable(monkeypatch):
     """Serper 호출 실패(403/429 등)면 0점 대신 측정 불가 + 오류 안내."""
     import seo_analyzer
