@@ -1,41 +1,32 @@
-# TEST_RESULTS — 네이버 순위 → 공식 오픈API 노출 판정
+# TEST_RESULTS — 유튜브 분석 대상 Topic → 실제 운영 채널 교체
 
-## Baseline (main @ 3eb53f6)
+## Baseline (main @ b2bb72c)
 ```
-python -m pytest tests/ -x -q  →  32 passed
+python -m pytest tests/ -x -q  →  39 passed
 ```
 
-## GATE 1
-- (a) 전체 pytest: **39 passed** (baseline 32 + naver_checker 7건 + naver 노출 테스트 갱신, 신규 실패 0).
-- (b) `tests/test_naver_checker.py` mock 5영역 통과:
-  ① 정상 노출(나무위키·유튜브 링크 + 엔드포인트/헤더/파라미터 검증)
-  ② 일부 미노출(무관 도메인만 → 타깃 도메인 부재 확인)
-  ③ 키 없음(`no_api_key` + GET 요청 0회)
-  ④ HTTP 401(Client ID 오류)·429(쿼터 초과) → `status=error`
-  ⑤ `<b>` 태그 제거(`strip_tags` + items 태그 제거 확인)
-- (c) 키 미설정 시 `check_my_rank('소설가 이후')`:
+## GATE 1 / FINAL GATE
+- (a) 전체 pytest: **40 passed** (baseline 39 + 채널 교체 고정 테스트 1건, 신규 실패 0).
+- (b) 구글 유튜브 노출 회귀 케이스 유지 확인: `test_serp_youtube_watch_link_counts_as_exposed`
+  — 채널ID 없이 `youtube.com/watch?v=...` 링크만 있어도 유튜브 노출=True (그대로 통과).
+- (c) **구글 SERP 카드 스냅샷 동일(회귀 없음):** 수정 전 스냅샷과 수정 후 결과가 완전 일치.
   ```
-  reliable: False | items: 0
-  모든 타깃 exposed=None (측정 불가), 거짓 데이터 없음
-  note: NAVER_CLIENT_ID/NAVER_CLIENT_SECRET 미설정 — …
+  {"검색결과 관련성 (소설가 이후)": true, "공식 홈페이지": false, "위키백과": false,
+   "나무위키": false, "교보문고": false, "유튜브 채널": true}   ← before == after
   ```
-  → 거짓 노출/순위 생성 0, 측정 불가 정직 표시 ✅
-- (d) **구글 SERP 회귀 없음:** `git diff HEAD -- serp_checker.py` = 변경 없음.
-  수정 전 seo_analyzer(HEAD)와 동일 mock으로 구글 serp 분석 → **결과 dict 완전 동일** ✅
+- (d) 옛 Topic 채널 ID(`UCQdIJKAOKVI8pKIsvcFBEKA`) 잔재: 코드/설정(`*.py`) 0건.
+  WORK_REPORT.md의 경위 설명 언급만 의도적으로 유지.
+- 신규 테스트 `test_youtube_target_is_real_operating_channel`: YOUTUBE_URL이 실제 채널ID를
+  포함하고 옛 ID를 포함하지 않으며, needle의 일반 `youtube.com`이 유지됨을 고정.
 
-## 통합 렌더 확인 (mock 오픈API 정상 응답)
-- `check_my_rank` → 위키/나무위키/유튜브 노출됨, 홈페이지/교보 미노출로 정확 판정.
-- HTML 카드: 제목 "네이버 노출 여부", 열 "노출/발견 URL", "✅ 노출됨"·"❌ 미노출" 표시,
-  "오픈API 순서 ≠ 통합검색 순위" 안내 포함. '몇 위' 표기 없음.
+## 네이버 카드 회귀 없음
+- `naver_checker.py` 무변경. 네이버 유튜브 판정은 도메인(`youtube.com`) 기반이라 채널ID 교체 영향 없음.
 
-## FINAL GATE
-- pytest: **39 passed** (신규 실패 0)
-- 구글 카드 회귀 없음(serp_checker 무변경, 결과 dict 동일)
-- 거짓 순위/노출 생성 없음(측정 불가 시 exposed=None)
-- 시크릿: `git diff --cached`에 실제 키 패턴 0건, `.env` 미추적
-- 문서: README.md / deploy/README.md 갱신(키 3종 목록·네이버 발급 절차)
+## 채널 검증 (규칙 4)
+- 새 채널(`UC3iQTM8DVgzRhgArrSIPp2g`)은 미션 제공 네이버 오픈API 실측 결과 기준: 약 690명 구독,
+  동영상 다수 → 실제 운영 채널. title에 "주제/Topic" 없음. (이 환경 네트워크로 직접 title 재확인은
+  제한되어 실측 근거로 진행.)
 
-## 한계
-- `NAVER_CLIENT_ID/SECRET` 실키 부재로 오픈API 실호출 검증 미수행 — 미션 제공 검증 스키마
-  (`items[].title/link/description`, `<b>` 포함) 기준 mock 테스트로 대체. 서버 키 설정 후
-  첫 분석에서 실동작 확인 필요.
+## FINAL GATE 요약
+- pytest 40 passed(신규 실패 0), 구글·네이버 카드 회귀 없음, 옛 채널 ID 코드 잔재 0,
+  `.env` 미추적, 문서(WORK_REPORT/config 주석) 갱신.

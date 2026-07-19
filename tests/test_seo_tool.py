@@ -267,6 +267,19 @@ def test_serp_youtube_watch_link_counts_as_exposed(monkeypatch):
     assert by_label.get("검색결과 노출: 교보문고 작가 페이지") is False
 
 
+def test_youtube_target_is_real_operating_channel():
+    """유튜브 분석 대상은 실제 운영 채널(UC3iQTM8...)이어야 하며,
+    옛 Topic 채널(UCQdIJK...) ID가 config/needle에 남아있으면 안 됨."""
+    import seo_analyzer
+    assert "UC3iQTM8DVgzRhgArrSIPp2g" in config.YOUTUBE_URL
+    assert "UCQdIJKAOKVI8pKIsvcFBEKA" not in config.YOUTUBE_URL
+    yt_needles = next(nd for name, nd, _ in seo_analyzer.SERP_PRESENCE_TARGETS
+                      if name == "유튜브 채널")
+    assert "UCQdIJKAOKVI8pKIsvcFBEKA" not in yt_needles
+    # 일반 youtube.com needle은 유지돼야 함 (채널ID 독립적으로 노출 판정 → 구글 회귀 방지)
+    assert "youtube.com" in yt_needles
+
+
 def test_serp_google_api_error_is_unmeasurable(monkeypatch):
     """Serper 호출 실패(403/429 등)면 0점 대신 측정 불가 + 오류 안내."""
     import seo_analyzer

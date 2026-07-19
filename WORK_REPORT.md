@@ -1,6 +1,21 @@
-# WORK_REPORT — 네이버 순위 카드: 스크래핑 → 공식 오픈API 노출 판정
+# WORK_REPORT — 유튜브 분석 대상: Topic 채널 → 실제 운영 채널 교체
 
-## 결론 요약
+## 결론 요약 (최신 미션)
+- 유튜브 카드가 평가하던 대상이 실제 운영 채널이 아니라 유튜브가 음원 유통으로 자동 생성한
+  **Topic("주제") 채널**(`UCQdIJKAOKVI8pKIsvcFBEKA`)이었다. Topic 채널은 소개글·정보란이 없어
+  메타 디스크립션 등 3개 항목이 원리적으로 개선 불가 → 잘못된 대상을 측정하던 상태.
+- `config.YOUTUBE_URL`과 `seo_analyzer` 유튜브 needle의 채널 ID를 네이버 오픈API로 실측 확인된
+  **실제 운영 채널**(`UC3iQTM8DVgzRhgArrSIPp2g`, 약 690명 구독·동영상 다수)로 교체했다.
+- 구글 SERP 회귀 방지: 유튜브 needle의 일반 `youtube.com`·`youtube.com/@`·`youtube.com/watch`는
+  그대로 두어, 채널 ID를 바꿔도 구글 카드 판정이 동일함을 **스냅샷 비교**로 보증(100점 유지).
+- `serp_checker.py`·`naver_checker.py`·owned/profile 로직은 불가침(무변경). 옛 채널 ID는 코드/설정에서
+  제거하고 WORK_REPORT의 경위 설명 목적 언급만 유지.
+- 채널 검증: 네트워크로 새 채널 title 직접 확인은 이 환경에서 제한되나, 미션에 제공된 네이버
+  오픈API 실측(구독자·동영상 수 있는 실제 채널, title에 "주제/Topic" 없음)을 근거로 진행.
+
+---
+
+## 결론 요약 (이전 미션 — 네이버 순위 → 공식 오픈API 노출 판정)
 - 네이버 카드가 스크래핑 봇 차단으로 전 항목 "파싱 실패"로만 뜨던 문제를, 네이버 **공식 오픈API
   (webkr)** 호출로 교체해 해결했다 (`naver_checker.py` 신규).
 - **'순위'를 포기하고 '노출 여부'로 전환**했다: 오픈API 결과 순서는 통합검색 화면 순위와
@@ -21,6 +36,10 @@
   기반 매칭이라 채널 ID 불일치의 영향을 받지 않는다. 구글 카드도 needle에 일반 `youtube.com`이 있어
   통과 중. 따라서 이번 미션 범위에서 YOUTUBE_URL 값은 **교체하지 않는다**(불가침 최소침습 원칙 +
   값 교체는 별도 확인이 필요한 사안). 사실만 기록.
+  - **[후속 처리]** 이 보류 항목은 다음 미션(Topic→실제 운영 채널 교체)에서 처리됨.
+    `YOUTUBE_URL`과 seo_analyzer 유튜브 needle의 옛 Topic 채널 ID(`UCQdIJKAOKVI8pKIsvcFBEKA`)를
+    실제 운영 채널 ID(`UC3iQTM8DVgzRhgArrSIPp2g`)로 교체. 구글 needle의 일반 `youtube.com`은 유지해
+    회귀 없음(스냅샷 비교로 보증). 상세는 이 파일 최상단 결론 요약 참조.
 - 순위 개념 의존부: `rank_monitor.fetch_naver_results`(스크래핑·추정 순위), `check_my_rank`(순위 계산),
   `report_generator._html_rank_section`/markdown, `dashboard.print_rank_results`가 rank에 의존.
   `webapp.py`는 `check_my_rank`→`save_rank_result`→튜플 전달만(순위 로직 없음).

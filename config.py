@@ -30,7 +30,9 @@ GOOGLE_URL = "https://www.google.com/search?q=%EC%86%8C%EC%84%A4%EA%B0%80%EC%9D%
 # 구글 SERP 노출 체크용 검색어 (Serper.dev API에 전달).
 # GOOGLE_URL 은 대시보드 카드의 링크 표시용으로만 유지한다.
 GOOGLE_SEARCH_QUERY = "소설가 이후"
-YOUTUBE_URL = "https://www.youtube.com/channel/UCQdIJKAOKVI8pKIsvcFBEKA"
+# 실제 운영 채널(약 690명 구독·동영상 다수). 이전 값은 유튜브가 음원 유통으로 자동 생성한
+# Topic("주제") 채널이라 소개글이 없어 메타 디스크립션 등 평가가 원리적으로 불가능했음.
+YOUTUBE_URL = "https://www.youtube.com/channel/UC3iQTM8DVgzRhgArrSIPp2g"
 
 # 대시보드 분석 대상 (라벨, URL, 페이지 유형).
 # 대시보드의 카드/메뉴는 이 목록을 그대로 따른다 — 여기에 추가하면 카드·메뉴·배치잡 모두 반영됨.
