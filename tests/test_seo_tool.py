@@ -31,8 +31,9 @@ MOCK_ANALYSIS = [{
     "recommendations": ["[JSON-LD] 구조화 데이터 추가 필요"],
 }]
 MOCK_RANK = (
-    {"homepage": {"rank": 3, "url": "https://xn--hu5b23z.com/", "title": "이후"}},
-    [{"rank": 1}, {"rank": 2}, {"rank": 3}],
+    {"공식 홈페이지 (이후.com)": {"exposed": True, "url": "https://xn--hu5b23z.com/"}},
+    [{"link": "https://xn--hu5b23z.com/"}],
+    True,
 )
 
 
@@ -389,21 +390,25 @@ def test_failed_fetch_result_is_renderable(tmp_path):
     print_seo_analysis([failed])
 
 
-# ── 10. 순위 신뢰도: 파싱 실패 시 가짜 순위 숨김 ────────────
+# ── 10. 네이버 노출: 측정 불가 시 거짓 데이터 숨김 ──────────
 def test_rank_reliability_hides_fake_rank():
-    """폴백(파싱 실패) 시 가짜 순위 숫자 대신 '측정 불가' 표시."""
-    found = {"homepage": {"rank": None, "url": "https://xn--hu5b23z.com/",
-                          "note": "네이버 파싱 실패 — 수동 확인 필요"}}
+    """측정 불가(키 없음/호출 실패) 시 노출 판정 대신 '측정 불가' 표시."""
+    found = {"공식 홈페이지 (이후.com)":
+             {"exposed": None, "url": None,
+              "note": "NAVER_CLIENT_ID/NAVER_CLIENT_SECRET 미설정"}}
     # reliable=False (3-tuple)
-    html = rg._html_rank_section((found, list(range(349)), False))
-    assert "신뢰할 수 없" in html        # 경고 배너
-    assert "측정 불가" in html or "수동 확인" in html
+    html = rg._html_rank_section((found, [], False))
+    assert "측정 불가" in html           # 경고 배너 + 행
+    assert "NAVER_CLIENT_ID" in html    # 원인 안내
+    assert "노출됨" not in html          # 거짓 노출 데이터 없음
 
-    # reliable=True 일 때는 순위 정상 표시
-    ok = {"homepage": {"rank": 5, "url": "https://xn--hu5b23z.com/"}}
-    html2 = rg._html_rank_section((ok, list(range(50)), True))
-    assert "5위" in html2
+    # reliable=True + 노출됨
+    ok = {"위키백과 문서": {"exposed": True, "url": "https://ko.wikipedia.org/wiki/이후"}}
+    html2 = rg._html_rank_section((ok, list(range(5)), True))
+    assert "노출됨" in html2
+    assert "노출 여부" in html2          # 카드 제목이 '순위'가 아니라 '노출 여부'
 
-    # 2-tuple 하위호환 (reliable 생략 → True 취급)
-    html3 = rg._html_rank_section((ok, list(range(50))))
-    assert "5위" in html3
+    # reliable=True + 미노출
+    no = {"유튜브 채널": {"exposed": False, "url": None}}
+    html3 = rg._html_rank_section((no, list(range(5)), True))
+    assert "미노출" in html3

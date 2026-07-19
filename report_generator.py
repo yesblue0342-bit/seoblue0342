@@ -117,36 +117,51 @@ def _html_rank_section(rank_results) -> str:
         f"<a href='{link_ihu}' target='_blank' style='color:#6b7280'>'이후' 검색</a></div>"
     )
 
+    # 네이버 오픈API는 통합검색 화면 순위와 순서가 달라 '몇 위'를 표시하면 거짓이 되므로
+    # 노출 O/X 만 보여준다는 안내 (구글 카드와 동일한 노출 여부 모델)
+    info_line = (
+        "<div style='margin:2px 0 10px;font-size:12px;color:#6b7280'>"
+        "ℹ️ 네이버 공식 오픈API 기준 <b>노출 여부</b>입니다. 오픈API 결과 순서는 통합검색 화면의 "
+        "순위와 일치하지 않아 '몇 위'는 표시하지 않습니다.</div>"
+    )
+
     warn = ""
     if not reliable:
+        note = ""
+        for _n, _i in found.items():
+            note = _i.get("note") or note
         warn = (
             "<div style='background:#fef3c7;border-left:4px solid #d97706;"
             "padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px'>"
-            "⚠️ 네이버가 봇 차단/구조 변경으로 정식 검색 결과 파싱에 실패했습니다. "
-            "아래 순위 수치는 신뢰할 수 없어 비워둡니다. "
-            "'이후' 단독보다 <b>'이후 소설가'</b>로 직접 검색해 확인하시는 것을 권장합니다."
+            "⚠️ 네이버 오픈API로 노출 여부를 측정하지 못했습니다(측정 불가). "
+            f"{escape(note)} 그동안은 아래 <b>'이후 소설가' 직접 검색</b>으로 확인하세요."
             "</div>"
         )
 
     rows = []
     for name, info in found.items():
-        rank = info.get("rank")
+        exposed = info.get("exposed")
         url = info.get("url") or "-"
-        cls = "ok" if rank and rank <= 10 else "no"
-        rank_label = _rank_badge(rank) if reliable else (info.get("note") or "측정 불가")
+        if not reliable or exposed is None:
+            cls, label = "no", "측정 불가"
+        elif exposed:
+            cls, label = "ok", "✅ 노출됨"
+        else:
+            cls, label = "no", "❌ 미노출"
         rows.append(
             f"<tr><td>{escape(str(name))}</td>"
-            f"<td class='{cls}'>{escape(rank_label)}</td>"
+            f"<td class='{cls}'>{escape(label)}</td>"
             f"<td class='val'>{escape(url[:70])}</td></tr>"
         )
-    count_note = f"총 {len(all_results)}개 결과 수집" if reliable else "파싱 실패"
+    count_note = f"총 {len(all_results)}개 결과 확인" if reliable else "측정 불가"
     return f"""
     <div class="card" id="rank-section">
-      <h2>📊 네이버 검색 순위 ('이후' 검색 · {count_note})</h2>
+      <h2>📊 네이버 노출 여부 ('소설가 이후' 검색 · {count_note})</h2>
+      {info_line}
       {warn}
       {direct_links}
       <table>
-        <thead><tr><th>페이지</th><th>순위</th><th>URL</th></tr></thead>
+        <thead><tr><th>페이지</th><th>노출</th><th>발견 URL</th></tr></thead>
         <tbody>{''.join(rows)}</tbody>
       </table>
     </div>"""
@@ -165,7 +180,7 @@ def _html_menu(analysis_results, has_rank: bool) -> str:
     if has_rank:
         chips.append(
             "<a href='#rank-section'><span class='dot' style='background:#16a34a'></span>"
-            "네이버 순위</a>"
+            "네이버 노출</a>"
         )
     for i, r in enumerate(analysis_results):
         score = r.get("score", 0)
@@ -313,29 +328,37 @@ def generate_markdown_report(analysis_results, rank_results=None,
         "",
     ]
 
-    # 순위 섹션
+    # 네이버 노출 여부 섹션 (순위 아님 — 오픈API 순서 ≠ 통합검색 순위)
     if rank_results:
         found = rank_results[0]
         all_results = rank_results[1]
         reliable = rank_results[2] if len(rank_results) > 2 else True
         lines += [
-            f"## 📊 네이버 검색 순위 (총 {len(all_results)}개 결과)",
+            f"## 📊 네이버 노출 여부 ('소설가 이후' 검색 · {len(all_results)}개 결과 확인)",
+            "",
+            "> ℹ️ 네이버 공식 오픈API 기준 노출 여부입니다. 오픈API 결과 순서는 통합검색 "
+            "화면 순위와 일치하지 않아 '몇 위'는 표시하지 않습니다.",
             "",
         ]
         if not reliable:
+            note = ""
+            for _i in found.values():
+                note = _i.get("note") or note
             lines += [
-                "> ⚠️ 네이버 파싱 실패(봇 차단/구조 변경) — 순위 수치 신뢰 불가. "
-                "'이후 소설가'로 직접 검색 확인 권장.",
+                f"> ⚠️ 네이버 오픈API 측정 불가. {note} '이후 소설가'로 직접 검색 확인 권장.",
                 "",
             ]
         lines += [
-            "| 페이지 | 순위 | URL |",
+            "| 페이지 | 노출 | 발견 URL |",
             "|--------|------|-----|",
         ]
         for name, info in found.items():
-            rank = info.get("rank")
+            exposed = info.get("exposed")
             url = (info.get("url") or "-")[:70]
-            label = _rank_badge(rank) if reliable else (info.get("note") or "측정 불가")
+            if not reliable or exposed is None:
+                label = "측정 불가"
+            else:
+                label = "✅ 노출됨" if exposed else "❌ 미노출"
             lines.append(f"| {name} | {label} | {url} |")
         lines.append("")
 

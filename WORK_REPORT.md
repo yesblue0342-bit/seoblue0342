@@ -1,36 +1,51 @@
-# WORK_REPORT — 유튜브 SERP 판정 확대 + run-docker.sh 키 자동 전달
+# WORK_REPORT — 네이버 순위 카드: 스크래핑 → 공식 오픈API 노출 판정
 
 ## 결론 요약
-- (A) 유튜브 노출 판정: needle에 `youtube.com/watch`·`youtube.com`을 추가해 영상 링크로만
-  노출돼도 "유튜브 노출됨"으로 인정 (이전 커밋 25b1822에서 반영, 이번 미션에서 재확인).
-- (B) 배포 시 키 유실 근본 원인 해결: `deploy/run-docker.sh`가 앱 루트의 `.env`를
-  `--env-file`로 컨테이너에 자동 주입하도록 수정. main push → Actions 배포로 컨테이너가
-  재생성돼도 SERPER_API_KEY가 유지된다.
-- **사용자 조치 필요:** 호스트 앱 루트(`/opt/seoblue0342`)에 `.env` 파일을 만들고
-  `SERPER_API_KEY=발급키` 한 줄을 넣어야 한다(이 파일은 gitignore, 저장소에 없음). 이후 배포는 자동.
-- 유튜브 외 SERP 타깃·owned/profile 로직 무변경. 저장소에 실제 키 문자열 0건.
+- 네이버 카드가 스크래핑 봇 차단으로 전 항목 "파싱 실패"로만 뜨던 문제를, 네이버 **공식 오픈API
+  (webkr)** 호출로 교체해 해결했다 (`naver_checker.py` 신규).
+- **'순위'를 포기하고 '노출 여부'로 전환**했다: 오픈API 결과 순서는 통합검색 화면 순위와
+  일치하지 않아 '몇 위'는 거짓 정보다. 구글 SERP 카드와 동일하게 각 타깃의 노출 O/X + 발견 URL만 표시.
+- 키(`NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET`) 미설정·호출 실패 시 거짓 데이터를 만들지 않고
+  '측정 불가'로 정직하게 표시(기존 정직성 UX 유지·강화). 스크래핑 폴백(추정 순위)은 완전 제거.
+- 구글 SERP(`serp_checker.py`·`SERP_PRESENCE_TARGETS`)와 owned/profile 로직은 1바이트도 안 바꿨다
+  (HEAD 대비 구글 결과 dict 동일 검증).
+- **사용자 조치:** 호스트 `/opt/seoblue0342/.env`에 `NAVER_CLIENT_ID`·`NAVER_CLIENT_SECRET` 추가
+  (SERPER_API_KEY와 함께). Docker 배포 시 자동 주입.
+- 실키 부재로 오픈API 실호출 검증은 미수행 — 미션에 제공된 검증된 스키마(`items[].title/link/description`,
+  `<b>` 태그 포함) 기준 mock 테스트로 대체.
 
 ## Phase 0 — 정찰
-- 최신 커밋: `25b1822`(유튜브 needle 확대 완료). baseline pytest: **32 passed**.
-- (A) 유튜브 항목 현재값(이미 확대됨):
-  ```python
-  ("유튜브 채널", ["UCQdIJKAOKVI8pKIsvcFBEKA", "youtube.com/@",
-               "youtube.com/watch", "youtube.com"], "...")
-  ```
-- (B) `deploy/run-docker.sh` 수정 전 `docker run` 블록: `-e`/`--env-file` 없이
-  `sudo docker run -d --name "$NAME" --network "$NETWORK" --restart unless-stopped "$NAME"`.
-  → 컨테이너 재생성 시 SERPER_API_KEY 미주입.
-- `.gitignore` 2행에 `.env` 등재됨. 저장소에 `.env` 파일 없음(미추적).
+- 최신 커밋: `3eb53f6`(run-docker .env 주입). baseline pytest: **32 passed**.
+- 유튜브 채널 ID 불일치 기록: 실호출 확인값 `UC3iQTM8DVgzRhgArrSIPp2g` vs
+  `config.YOUTUBE_URL`의 `UCQdIJKAOKVI8pKIsvcFBEKA`. **판단:** 네이버 판정은 도메인(`youtube.com`)
+  기반 매칭이라 채널 ID 불일치의 영향을 받지 않는다. 구글 카드도 needle에 일반 `youtube.com`이 있어
+  통과 중. 따라서 이번 미션 범위에서 YOUTUBE_URL 값은 **교체하지 않는다**(불가침 최소침습 원칙 +
+  값 교체는 별도 확인이 필요한 사안). 사실만 기록.
+- 순위 개념 의존부: `rank_monitor.fetch_naver_results`(스크래핑·추정 순위), `check_my_rank`(순위 계산),
+  `report_generator._html_rank_section`/markdown, `dashboard.print_rank_results`가 rank에 의존.
+  `webapp.py`는 `check_my_rank`→`save_rank_result`→튜플 전달만(순위 로직 없음).
+- DB: `rank_history(rank INTEGER, url_found TEXT, ...)`. **결정:** 스키마·`save_rank_result`·
+  `get_rank_history` 시그니처 무변경(최소 침습). 새 found엔 rank 키가 없어 `info.get("rank")`→NULL 저장,
+  노출은 `url_found`(비어있지 않으면 노출)로 자연 기록됨.
+- 스키마 결정(측정 불가 표현): 구글 `measurable` 패턴과 일관되게, `check_my_rank`의 3-튜플
+  `(found, all_results, reliable)`을 유지하되 의미를 재정의 — `reliable`=측정 성공 여부,
+  `found[name]={"exposed": bool|None, "url": str|None, "note"?: str}`. exposed=None → 측정 불가.
 
-## Phase 1 — (A) 유튜브 needle (기반영 확인)
-- needle 4종(`채널ID`, `@handle`, `watch`, `youtube.com`). 테스트
-  `test_serp_youtube_watch_link_counts_as_exposed`: watch 링크만으로 유튜브=노출,
-  동시에 위키·교보는 미노출(회귀 없음).
+## Phase 1 — 구현
+- `naver_checker.check_naver_presence(query)`: `GET .../webkr.json`, 헤더 X-Naver-Client-Id/Secret,
+  `{query, display:10, start}`. 응답 `items[]`의 link + 태그 제거한 title/description을 links로 수집.
+  `strip_tags()`로 `<b>` 등 제거. no_api_key/error/ok 상태. 1페이지 후 결과가 display 미만이면 중단(호출 절약).
+- `rank_monitor`: `fetch_naver_results`(스크래핑·폴백 추정) **삭제**. `check_my_rank`가
+  `NAVER_PRESENCE_TARGETS`(홈페이지·위키·나무위키·교보·유튜브, 도메인 needle) 각각에 대해
+  items에서 도메인 매칭으로 노출 O/X + URL 판정. 실패 시 exposed=None + note.
+  검색결과 페이지(search.naver.com·search.daum.net)는 webkr에 안 잡혀 항상 미노출로 오판되므로 타깃 제외.
+- 렌더러: HTML/마크다운/CLI 모두 열 이름 `순위`→`노출`, 카드 제목 "네이버 노출 여부",
+  "오픈API 순서≠통합검색 순위" 1줄 안내 추가. 측정 불가는 회색 표기 + 원인 note.
+- `config.NAVER_SEARCH_QUERY = "소설가 이후"` 추가.
 
-## Phase 2 — (B) run-docker.sh 키 자동 전달
-- `cd "$(dirname "$0")/.."` 뒤라 `$PWD`=앱 루트. `.env` 있으면 `ENV_ARG="--env-file $PWD/.env"`,
-  없으면 경고 출력 후 계속 진행(배포 실패시키지 않음). `docker run`에 `$ENV_ARG` 삽입.
-- `deploy/README.md`: Docker 배포 시 호스트 `.env`에 키를 넣으면 배포 때마다 자동 주입된다는 안내 추가.
-- `.env` 파일은 생성하지 않음(호스트에서 사용자가 생성).
+## Phase 2 — 배포/문서
+- `deploy/run-docker.sh`는 이미 `.env` 자동 주입 → 구조 변경 없음. `deploy/README.md`에 필요한
+  키 3종(SERPER_API_KEY, NAVER_CLIENT_ID, NAVER_CLIENT_SECRET) 목록과 네이버 발급 절차 문서화.
+- `README.md`: 네이버 측정 방식(스크래핑→오픈API), 노출 여부인 이유, 환경변수 2개 추가.
 
 ## GATE 검증 → TEST_RESULTS.md

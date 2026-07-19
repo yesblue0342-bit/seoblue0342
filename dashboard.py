@@ -27,37 +27,33 @@ def print_header():
 
 
 def print_rank_results(found: dict, total_checked: int):
-    """순위 결과 테이블 출력"""
+    """네이버 노출 여부 테이블 출력 (순위 아님 — 오픈API 순서 ≠ 통합검색 순위)"""
     table = Table(
-        title="📊 네이버 검색 순위 ('이후' 검색)",
+        title="📊 네이버 노출 여부 ('소설가 이후' · 공식 오픈API)",
         box=box.ROUNDED,
         border_style="green",
         header_style="bold green",
     )
     table.add_column("페이지", style="cyan", no_wrap=True)
-    table.add_column("순위", justify="center")
+    table.add_column("노출", justify="center")
     table.add_column("상태", justify="center")
-    table.add_column("URL", style="dim", max_width=55)
+    table.add_column("발견 URL", style="dim", max_width=55)
 
     for name, info in found.items():
-        rank = info.get("rank")
+        exposed = info.get("exposed")
         url = info.get("url") or "-"
 
-        if rank:
-            if rank <= 3:
-                rank_text = Text(f"🥇 {rank}위", style="bold yellow")
-                status = Text("✅ 상위 노출!", style="bold green")
-            elif rank <= 10:
-                rank_text = Text(f"🎯 {rank}위", style="bold cyan")
-                status = Text("👍 1페이지", style="cyan")
-            else:
-                rank_text = Text(f"📍 {rank}위", style="yellow")
-                status = Text("⚠️ 개선 필요", style="yellow")
+        if exposed is None:
+            exp_text = Text("⚪ 측정 불가", style="dim")
+            status = Text("키/호출 확인 필요", style="dim")
+        elif exposed:
+            exp_text = Text("✅ 노출됨", style="bold green")
+            status = Text("👍 검색결과 노출", style="green")
         else:
-            rank_text = Text("❓ 미발견", style="red")
-            status = Text(f"❌ {total_checked}위 이내 없음", style="red")
+            exp_text = Text("❌ 미노출", style="red")
+            status = Text("⚠️ 개선 필요", style="yellow")
 
-        table.add_row(name, rank_text, status, url[:55] if url != "-" else "-")
+        table.add_row(name, exp_text, status, url[:55] if url != "-" else "-")
 
     console.print(table)
     console.print()

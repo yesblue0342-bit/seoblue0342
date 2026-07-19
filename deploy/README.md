@@ -50,6 +50,29 @@ SEO 분석 도구가 지적한 홈페이지 누락 항목(메타 디스크립션
 
 ---
 
+## 네이버 노출 체크 — 네이버 공식 오픈API 키 설정
+
+대시보드의 "네이버 노출 여부" 카드는 스크래핑 대신 **네이버 검색 공식 오픈API(webkr)**를 사용합니다.
+키가 없으면 카드가 "측정 불가"로 표시됩니다 (무료 일 25,000회, 봇 차단 없음).
+
+> **'순위'가 아니라 '노출 여부'입니다.** 오픈API 결과 순서는 통합검색 화면 순위와 일치하지 않아
+> '몇 위'를 표시하면 거짓 정보가 되므로, 각 페이지의 노출 O/X 와 발견 URL만 보여줍니다.
+
+1. [네이버 개발자센터](https://developers.naver.com/apps/#/register)에서 애플리케이션 등록 후
+   **검색 API** 사용 설정 → `Client ID`(`NAVER_CLIENT_ID`)·`Client Secret`(`NAVER_CLIENT_SECRET`) 복사
+2. 아래 `.env`에 두 줄을 추가 (Docker 배포 시 자동 주입).
+
+### `.env`에 넣을 키 목록 (호스트 앱 루트 `/opt/seoblue0342/.env`)
+```
+SERPER_API_KEY=발급키
+NAVER_CLIENT_ID=발급한_Client_ID
+NAVER_CLIENT_SECRET=발급한_Client_Secret
+```
+이 파일은 `.gitignore` 대상이라 저장소에 커밋되지 않으며, 배포(`run-docker.sh`)마다 `--env-file`로
+컨테이너에 자동 주입됩니다.
+
+---
+
 ## 배포 후 체크리스트
 
 - [ ] 홈페이지 `<head>`에 메타태그/JSON-LD 반영

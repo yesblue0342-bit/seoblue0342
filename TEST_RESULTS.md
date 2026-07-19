@@ -1,30 +1,41 @@
-# TEST_RESULTS — 유튜브 SERP 판정 확대 + run-docker.sh 키 자동 전달
+# TEST_RESULTS — 네이버 순위 → 공식 오픈API 노출 판정
 
-## Baseline (main @ 25b1822)
+## Baseline (main @ 3eb53f6)
 ```
 python -m pytest tests/ -x -q  →  32 passed
 ```
 
-## GATE 1 — (A) 유튜브 needle
-- 전체 pytest: **32 passed** (신규 실패 0).
-- `test_serp_youtube_watch_link_counts_as_exposed`: Serper links가 영상 링크
-  (`youtube.com/watch?v=1qUVtfqvAwE`, `...=xc2ivmdltmE`)만 있어도 유튜브=노출(True).
-- 회귀 없음: 같은 케이스에서 위키백과·교보문고는 미노출(False) 유지.
+## GATE 1
+- (a) 전체 pytest: **39 passed** (baseline 32 + naver_checker 7건 + naver 노출 테스트 갱신, 신규 실패 0).
+- (b) `tests/test_naver_checker.py` mock 5영역 통과:
+  ① 정상 노출(나무위키·유튜브 링크 + 엔드포인트/헤더/파라미터 검증)
+  ② 일부 미노출(무관 도메인만 → 타깃 도메인 부재 확인)
+  ③ 키 없음(`no_api_key` + GET 요청 0회)
+  ④ HTTP 401(Client ID 오류)·429(쿼터 초과) → `status=error`
+  ⑤ `<b>` 태그 제거(`strip_tags` + items 태그 제거 확인)
+- (c) 키 미설정 시 `check_my_rank('소설가 이후')`:
+  ```
+  reliable: False | items: 0
+  모든 타깃 exposed=None (측정 불가), 거짓 데이터 없음
+  note: NAVER_CLIENT_ID/NAVER_CLIENT_SECRET 미설정 — …
+  ```
+  → 거짓 노출/순위 생성 0, 측정 불가 정직 표시 ✅
+- (d) **구글 SERP 회귀 없음:** `git diff HEAD -- serp_checker.py` = 변경 없음.
+  수정 전 seo_analyzer(HEAD)와 동일 mock으로 구글 serp 분석 → **결과 dict 완전 동일** ✅
 
-## GATE 2 — (B) run-docker.sh
-- (a) `bash -n deploy/run-docker.sh` → **통과**.
-- (b) 분기 로직 검증(실제 docker 실행 없이 시뮬레이션):
-  - `.env` 있음 → `ENV_ARG="--env-file <앱루트>/.env"` 설정됨.
-  - `.env` 없음 → `ENV_ARG=""` + 경고 출력 후 정상 진행.
-- (c) `.gitignore` 2행에 `.env` 유지 확인. `git status`에 `.env` 미추적, 저장소에 `.env` 파일 없음.
+## 통합 렌더 확인 (mock 오픈API 정상 응답)
+- `check_my_rank` → 위키/나무위키/유튜브 노출됨, 홈페이지/교보 미노출로 정확 판정.
+- HTML 카드: 제목 "네이버 노출 여부", 열 "노출/발견 URL", "✅ 노출됨"·"❌ 미노출" 표시,
+  "오픈API 순서 ≠ 통합검색 순위" 안내 포함. '몇 위' 표기 없음.
 
 ## FINAL GATE
-- pytest: **32 passed** (신규 실패 0)
-- `bash -n deploy/run-docker.sh` 통과
-- 유튜브 외 SERP 타깃·owned/profile 로직 무변경
-- 시크릿: `git diff --cached`에 실제 키(40자 hex 등) 패턴 0건, `.env` 미커밋
-- 문서: deploy/README.md에 Docker `.env` 자동 주입 안내 추가
+- pytest: **39 passed** (신규 실패 0)
+- 구글 카드 회귀 없음(serp_checker 무변경, 결과 dict 동일)
+- 거짓 순위/노출 생성 없음(측정 불가 시 exposed=None)
+- 시크릿: `git diff --cached`에 실제 키 패턴 0건, `.env` 미추적
+- 문서: README.md / deploy/README.md 갱신(키 3종 목록·네이버 발급 절차)
 
 ## 한계
-- 실제 `docker run --env-file` 동작은 이 환경에 docker/키가 없어 미실행 — 분기 로직 리뷰 +
-  bash 문법 검사로 검증. 서버에서 `.env` 생성 후 첫 배포에서 실주입 확인 필요.
+- `NAVER_CLIENT_ID/SECRET` 실키 부재로 오픈API 실호출 검증 미수행 — 미션 제공 검증 스키마
+  (`items[].title/link/description`, `<b>` 포함) 기준 mock 테스트로 대체. 서버 키 설정 후
+  첫 분석에서 실동작 확인 필요.

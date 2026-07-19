@@ -49,8 +49,11 @@ ANALYSIS_TARGETS = [
     ("유튜브 - 이후 채널", YOUTUBE_URL, "profile"),
 ]
 
-# 네이버 검색 URL
+# 네이버 검색 URL (대시보드의 '직접 검색' 링크 표시용으로만 유지)
 NAVER_SEARCH_URL = "https://search.naver.com/search.naver"
+
+# 네이버 오픈API 노출 체크용 검색어. '이후' 단독은 동명이인에 밀리므로 '소설가 이후' 사용.
+NAVER_SEARCH_QUERY = "소설가 이후"
 
 # 요청 헤더 (브라우저 에뮬레이션)
 HEADERS = {
