@@ -10,6 +10,7 @@
     <form id="convert-form" class="stack-form">
       <label for="share-url">공유 링크</label>
       <input id="share-url" name="url" type="url" inputmode="url" placeholder="https://chatgpt.com/share/… 또는 https://claude.ai/share/…" required>
+      <p class="muted small form-help">ChatGPT의 <code>/c/…</code> 주소는 비공개 대화입니다. 대화 화면의 공유하기에서 공개 <code>/share/…</code> 링크를 만든 뒤 입력하세요. 별도 로그인이나 OpenAI API 키는 필요하지 않습니다.</p>
       <button id="convert-button" class="primary-button" type="submit">가져와서 변환</button>
     </form>
     <div id="convert-message" class="inline-message" role="status" aria-live="polite"></div>

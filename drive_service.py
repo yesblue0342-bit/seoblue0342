@@ -124,12 +124,12 @@ class DriveClient:
             except (requests.RequestException, AttributeError, ValueError):
                 pass
         if require_full_access and FULL_DRIVE_SCOPE not in scopes:
-            raise DriveError("Google Drive 전체 접근 OAuth scope가 확인되지 않았습니다.", 403)
+            raise DriveError("파일 저장소 전체 접근 권한이 확인되지 않았습니다.", 403)
         return {"connected": True, "fullAccess": FULL_DRIVE_SCOPE in scopes}
 
     def _token(self, force: bool = False) -> str:
         if not self.configured:
-            raise DriveError("Google Drive 연결 환경변수가 설정되지 않았습니다.", 503)
+            raise DriveError("파일 저장소 연결 설정이 없습니다.", 503)
         with self._lock:
             if not force and self._access_token and time.time() < self._expires_at - 60:
                 return self._access_token
@@ -145,25 +145,25 @@ class DriveClient:
                     timeout=15,
                 )
             except requests.RequestException as exc:
-                raise DriveError("Google 인증 서버에 연결하지 못했습니다.") from exc
+                raise DriveError("계정 인증 서버에 연결하지 못했습니다.") from exc
             if response.status_code != 200:
                 try:
                     oauth_error = response.json().get("error", "")
                 except (AttributeError, ValueError):
                     oauth_error = ""
                 if oauth_error == "invalid_client":
-                    message = "Google OAuth 클라이언트 인증에 실패했습니다. ID와 Secret 조합을 확인해 주세요."
+                    message = "파일 저장소 계정 인증에 실패했습니다. 서버 인증 설정을 확인해 주세요."
                 elif oauth_error == "invalid_grant":
-                    message = "Google Drive 인증 토큰이 만료 또는 폐기되었습니다. 토큰을 다시 발급해 주세요."
+                    message = "파일 저장소 인증이 만료 또는 폐기되었습니다. 서버 인증을 갱신해 주세요."
                 else:
-                    message = "Google Drive 인증에 실패했습니다. 서버 자격증명을 확인해 주세요."
+                    message = "파일 저장소 인증에 실패했습니다. 서버 설정을 확인해 주세요."
                 raise DriveError(message, 503)
             try:
                 data = response.json()
             except ValueError as exc:
-                raise DriveError("Google 인증 응답 형식이 올바르지 않습니다.", 503) from exc
+                raise DriveError("계정 인증 응답 형식이 올바르지 않습니다.", 503) from exc
             if not data.get("access_token"):
-                raise DriveError("Google 인증 응답에 access token이 없습니다.", 503)
+                raise DriveError("계정 인증 응답에 access token이 없습니다.", 503)
             self._access_token = data["access_token"]
             self._expires_at = time.time() + int(data.get("expires_in", 3600))
             self._scope = data.get("scope", self._scope)
@@ -175,19 +175,19 @@ class DriveClient:
         try:
             response = self.http.request(method, url, headers=headers, timeout=30, **kwargs)
         except requests.RequestException as exc:
-            raise DriveError("Google Drive API에 연결하지 못했습니다.") from exc
+            raise DriveError("파일 저장소에 연결하지 못했습니다.") from exc
         if response.status_code == 401 and retry:
             self._token(force=True)
             headers.pop("Authorization", None)
             return self._request(method, url, retry=False, headers=headers, **kwargs)
         if response.status_code >= 400:
-            message = "Google Drive 요청을 처리하지 못했습니다."
+            message = "파일 저장소 요청을 처리하지 못했습니다."
             if response.status_code == 403:
-                message = "Google Drive 권한이 부족합니다. OAuth scope와 파일 권한을 확인해 주세요."
+                message = "파일 저장소 권한이 부족합니다. 계정과 파일 권한을 확인해 주세요."
             elif response.status_code == 404:
                 message = "요청한 파일 또는 폴더를 찾을 수 없습니다."
             elif response.status_code == 429:
-                message = "Google Drive 요청 한도를 초과했습니다. 잠시 후 다시 시도해 주세요."
+                message = "파일 저장소 요청 한도를 초과했습니다. 잠시 후 다시 시도해 주세요."
             raise DriveError(message, response.status_code)
         return response
 
@@ -196,7 +196,7 @@ class DriveClient:
         try:
             return response.json()
         except ValueError as exc:
-            raise DriveError("Google Drive 응답 형식이 올바르지 않습니다.") from exc
+            raise DriveError("파일 저장소 응답 형식이 올바르지 않습니다.") from exc
 
     def list_files(self, folder_id: str = "root", search: str = "", page_token: str = "") -> dict:
         conditions = ["trashed = false"]
@@ -217,7 +217,7 @@ class DriveClient:
         files = data.get("files", [])
         for item in files:
             item["isFolder"] = item.get("mimeType") == FOLDER_MIME
-        folder = {"id": folder_id or "root", "name": "내 드라이브"}
+        folder = {"id": folder_id or "root", "name": "내 폴더"}
         if folder_id and folder_id != "root":
             folder = self._json(
                 "GET",
@@ -261,7 +261,7 @@ class DriveClient:
 
     def _require_write(self) -> None:
         if not self.writes_enabled:
-            raise DriveError("Drive 쓰기 기능이 서버 설정에서 비활성화되어 있습니다.", 403)
+            raise DriveError("파일 저장소 쓰기 기능이 비활성화되어 있습니다.", 403)
 
     def create_folder(self, parent_id: str, name: str) -> dict:
         self._require_write()

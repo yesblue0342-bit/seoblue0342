@@ -43,48 +43,64 @@ def _rank_badge(rank):
 #  HTML 리포트
 # ──────────────────────────────────────────────────────────────
 _HTML_STYLE = """
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+  --bg: #fff; --surface: #fff; --text: #111; --muted: #666;
+  --line: #d8d8d8; --soft: #f5f5f5;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000; --surface: #000; --text: #fff; --muted: #aaa;
+  --line: #444; --soft: #111;
+}
 * { box-sizing: border-box; }
 body {
   font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic",
                "Noto Sans KR", sans-serif;
-  margin: 0; padding: 0; background: #f6f7f9; color: #1f2937; line-height: 1.6;
+  margin: 0; padding: 0; background: var(--bg); color: var(--text); line-height: 1.6;
 }
 .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
 header.hero {
-  background: linear-gradient(135deg, #15803d, #16a34a);
-  color: #fff; border-radius: 16px; padding: 28px 32px; margin-bottom: 28px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line);
+  border-radius: 16px; padding: 28px 32px; margin-bottom: 28px;
 }
 header.hero h1 { margin: 0 0 6px; font-size: 24px; }
-header.hero p { margin: 0; opacity: .9; font-size: 14px; }
+header.hero p { margin: 0; color: var(--muted); font-size: 14px; }
 .card {
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
-  padding: 22px 24px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 24px; margin-bottom: 22px;
 }
 .card h2 { margin: 0 0 14px; font-size: 18px; }
 .score-pill {
   display: inline-flex; align-items: center; gap: 8px;
   font-weight: 700; font-size: 15px; padding: 6px 14px; border-radius: 999px;
-  color: #fff;
+  color: var(--text); background: var(--surface); border: 1px solid var(--text);
 }
-.meta-line { color: #6b7280; font-size: 13px; margin: 8px 0 16px; }
+.meta-line, .note { color: var(--muted); font-size: 13px; margin: 8px 0 16px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-th { color: #6b7280; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
-.ok { color: #16a34a; font-weight: 700; }
-.no { color: #dc2626; font-weight: 700; }
-.val { color: #374151; word-break: break-word; }
-.rec { background: #fef2f2; border-left: 3px solid #dc2626; padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 8px 0; font-size: 14px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+.ok { color: var(--text); font-weight: 700; }
+.no { color: var(--text); font-weight: 700; text-decoration: underline; text-decoration-style: dotted; }
+.val { color: var(--text); word-break: break-word; }
+.rec, .warning { background: var(--soft); border-left: 3px double var(--text); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 8px 0; font-size: 14px; }
 .rank-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 0; }
-footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 32px; }
-code { background: #f3f4f6; padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px; }
+code { background: var(--soft); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
 .menu { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; }
 .menu a { display:inline-flex; align-items:center; gap:6px; text-decoration:none;
-  background:#fff; border:1px solid #e5e7eb; border-radius:999px; padding:7px 14px;
-  font-size:13px; font-weight:600; color:#15803d; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-.menu a:hover { background:#f0fdf4; border-color:#16a34a; }
-.menu a .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+  font-size:13px; font-weight:600; color:var(--text); }
+.menu a:hover { background:var(--soft); border-color:var(--text); }
+.menu a .dot { width:8px; height:8px; border:1px solid currentColor; border-radius:50%; display:inline-block; }
+.kind-badge { display:inline-block; font-size:12px; font-weight:700; color:var(--text);
+  background:var(--surface); border:1px solid var(--line); border-radius:999px;
+  padding:3px 10px; margin-left:8px; vertical-align:middle; }
+.section-title { font-size:14px; margin:18px 0 6px; color:var(--text); }
+.direct-links { margin:10px 0; font-size:13px; }
+a { color:var(--text); text-underline-offset:2px; }
 .card { scroll-margin-top: 16px; }
+:focus-visible { outline:2px solid var(--text); outline-offset:2px; }
 @media (max-width: 600px) {
   .wrap { padding: 18px 14px 48px; }
   header.hero { padding: 20px 18px; border-radius: 12px; margin-bottom: 18px; }
@@ -112,16 +128,16 @@ def _html_rank_section(rank_results) -> str:
     link_ihu = f"https://search.naver.com/search.naver?query={quote('이후')}"
     link_novel = f"https://search.naver.com/search.naver?query={quote('이후 소설가')}"
     direct_links = (
-        f"<div style='margin:10px 0;font-size:13px'>🔎 네이버에서 직접 확인: "
-        f"<a href='{link_novel}' target='_blank' style='color:#16a34a;font-weight:700'>'이후 소설가' 검색</a> · "
-        f"<a href='{link_ihu}' target='_blank' style='color:#6b7280'>'이후' 검색</a></div>"
+        f"<div class='direct-links'>네이버에서 직접 확인: "
+        f"<a href='{link_novel}' target='_blank'><b>'이후 소설가' 검색</b></a> · "
+        f"<a href='{link_ihu}' target='_blank'>'이후' 검색</a></div>"
     )
 
     # 네이버 오픈API는 통합검색 화면 순위와 순서가 달라 '몇 위'를 표시하면 거짓이 되므로
     # 노출 O/X 만 보여준다는 안내 (구글 카드와 동일한 노출 여부 모델)
     info_line = (
-        "<div style='margin:2px 0 10px;font-size:12px;color:#6b7280'>"
-        "ℹ️ 네이버 공식 오픈API 기준 <b>노출 여부</b>입니다. 오픈API 결과 순서는 통합검색 화면의 "
+        "<div class='note'>"
+        "네이버 공식 오픈API 기준 <b>노출 여부</b>입니다. 오픈API 결과 순서는 통합검색 화면의 "
         "순위와 일치하지 않아 '몇 위'는 표시하지 않습니다.</div>"
     )
 
@@ -131,9 +147,8 @@ def _html_rank_section(rank_results) -> str:
         for _n, _i in found.items():
             note = _i.get("note") or note
         warn = (
-            "<div style='background:#fef3c7;border-left:4px solid #d97706;"
-            "padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px'>"
-            "⚠️ 네이버 오픈API로 노출 여부를 측정하지 못했습니다(측정 불가). "
+            "<div class='warning'>"
+            "네이버 오픈API로 노출 여부를 측정하지 못했습니다(측정 불가). "
             f"{escape(note)} 그동안은 아래 <b>'이후 소설가' 직접 검색</b>으로 확인하세요."
             "</div>"
         )
@@ -145,9 +160,9 @@ def _html_rank_section(rank_results) -> str:
         if not reliable or exposed is None:
             cls, label = "no", "측정 불가"
         elif exposed:
-            cls, label = "ok", "✅ 노출됨"
+            cls, label = "ok", "노출됨"
         else:
-            cls, label = "no", "❌ 미노출"
+            cls, label = "no", "미노출"
         rows.append(
             f"<tr><td>{escape(str(name))}</td>"
             f"<td class='{cls}'>{escape(label)}</td>"
@@ -156,7 +171,7 @@ def _html_rank_section(rank_results) -> str:
     count_note = f"총 {len(all_results)}개 결과 확인" if reliable else "측정 불가"
     return f"""
     <div class="card" id="rank-section">
-      <h2>📊 네이버 노출 여부 ('소설가 이후' 검색 · {count_note})</h2>
+      <h2>네이버 노출 여부 ('소설가 이후' 검색 · {count_note})</h2>
       {info_line}
       {warn}
       {direct_links}
@@ -179,17 +194,14 @@ def _html_menu(analysis_results, has_rank: bool) -> str:
     chips = []
     if has_rank:
         chips.append(
-            "<a href='#rank-section'><span class='dot' style='background:#16a34a'></span>"
+            "<a href='#rank-section'><span class='dot'></span>"
             "네이버 노출</a>"
         )
     for i, r in enumerate(analysis_results):
-        score = r.get("score", 0)
-        # 측정 불가(API 키 미설정·봇 차단 등)는 빨간 0점 대신 회색 점으로 표시
-        color = _score_color(score) if r.get("measurable", True) else "#9ca3af"
         label = escape(r.get("label", f"소스 {i+1}"))
         chips.append(
             f"<a href='#{_menu_anchor(i)}'>"
-            f"<span class='dot' style='background:{color}'></span>{label}</a>"
+            f"<span class='dot'></span>{label}</a>"
         )
     return f"<nav class='menu'>{''.join(chips)}</nav>"
 
@@ -210,33 +222,28 @@ _KIND_BADGES = {
 def _kind_badge_html(kind: str) -> str:
     if kind not in _KIND_BADGES:
         return ""
-    label, color, note = _KIND_BADGES[kind]
+    label, _color, note = _KIND_BADGES[kind]
     return (
-        f"<span style='display:inline-block;font-size:12px;font-weight:700;color:#fff;"
-        f"background:{color};border-radius:999px;padding:3px 10px;margin-left:8px;"
-        f"vertical-align:middle'>{label}</span>"
-        f"<div style='font-size:13px;color:#6b7280;margin:8px 0 0'>ℹ️ {escape(note)}</div>"
+        f"<span class='kind-badge'>{label}</span>"
+        f"<div class='note'>{escape(note)}</div>"
     )
 
 
 def _html_seo_section(r: dict, idx: int = 0) -> str:
     score = r.get("score", 0)
     meta = r.get("meta", {})
-    color = _score_color(score)
-    emoji = _score_emoji(score)
-
     check_rows = []
     for c in r.get("checks", []):
         if c.get("passed"):
             val = escape(c.get("value") or "통과")
             check_rows.append(
-                f"<tr><td class='ok'>✅</td><td>{escape(c['label'])}</td>"
+                f"<tr><td class='ok'>통과</td><td>{escape(c['label'])}</td>"
                 f"<td class='val'>{val[:90]}</td></tr>"
             )
         else:
             detail = escape(c.get("detail") or "")
             check_rows.append(
-                f"<tr><td class='no'>❌</td><td><b>{escape(c['label'])}</b></td>"
+                f"<tr><td class='no'>확인</td><td><b>{escape(c['label'])}</b></td>"
                 f"<td class='val'>{detail[:120]}</td></tr>"
             )
 
@@ -244,7 +251,7 @@ def _html_seo_section(r: dict, idx: int = 0) -> str:
 
     recs = "".join(
         f"<div class='rec'>{escape(rec)}</div>" for rec in r.get("recommendations", [])
-    ) or "<p class='ok'>🎉 모든 SEO 항목 통과!</p>"
+    ) or "<p class='ok'>모든 SEO 항목 통과</p>"
 
     meta_line = (
         f"HTTP {meta.get('status', '?')} · "
@@ -254,11 +261,11 @@ def _html_seo_section(r: dict, idx: int = 0) -> str:
 
     # 측정 불가: 빨간 0점 대신 회색 '측정 불가' 표시 (점수 왜곡 방지)
     if measurable:
-        pill = (f'<span class="score-pill" style="background:{color}">{emoji} {score}점'
+        pill = (f'<span class="score-pill">{score}점'
                 f'&nbsp;<span style="opacity:.85;font-weight:500">'
                 f'({r.get("passed", 0)}/{r.get("total", 0)} 통과)</span></span>')
     else:
-        pill = '<span class="score-pill" style="background:#9ca3af">⚪ 측정 불가</span>'
+        pill = '<span class="score-pill">측정 불가</span>'
 
     checks_table = f"""
       <table>
@@ -274,7 +281,7 @@ def _html_seo_section(r: dict, idx: int = 0) -> str:
       {pill}{_kind_badge_html(r.get('kind', ''))}
       <div class="meta-line">{escape(r.get('url', ''))} · {meta_line}</div>
       {checks_table}
-      <h3 style="font-size:14px;margin:18px 0 6px;color:#374151">{recs_title}
+      <h3 class="section-title">{recs_title}
         ({len(r.get('recommendations', []))}건)</h3>
       {recs}
     </div>"""
@@ -295,17 +302,24 @@ def generate_html_report(analysis_results, rank_results=None,
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>이후 소설가 — 네이버 SEO 분석 리포트</title>
+<script>
+  try {{
+    const saved = localStorage.getItem('seoblue-theme');
+    document.documentElement.dataset.theme = saved === 'dark' ? 'dark' : 'light';
+  }} catch (_) {{ document.documentElement.dataset.theme = 'light'; }}
+</script>
 <style>{_HTML_STYLE}</style>
 </head>
 <body>
 <div class="wrap">
   <header class="hero">
-    <h1>📈 이후 소설가 — 네이버 SEO 분석 리포트</h1>
+    <h1>이후 소설가 — 네이버 SEO 분석 리포트</h1>
     <p>네이버 검색 '이후' 키워드 상위 노출 분석 · 생성: {ts}</p>
   </header>
   {''.join(body)}
   <footer>seoblue0342 · 이후 소설가 네이버 SEO 최적화 도구</footer>
 </div>
+<script src="/static/theme.js" defer></script>
 </body>
 </html>"""
 

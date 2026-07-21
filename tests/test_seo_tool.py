@@ -331,6 +331,9 @@ def test_html_report_created(tmp_path):
     assert "<!DOCTYPE html>" in html
     assert "테스트 페이지" in html
     assert "JSON-LD" in html
+    assert 'data-theme="dark"' in html
+    assert "/static/theme.js" in html
+    assert all(icon not in html for icon in ("📈", "🔄", "✅", "❌", "⚠️", "🔎", "ℹ️"))
 
 
 # ── 4. 리포트 생성기 (Markdown) ──────────────────────────────

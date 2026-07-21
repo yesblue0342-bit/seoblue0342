@@ -16,6 +16,12 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 
 MAX_PAGE_BYTES = 5 * 1024 * 1024
 MAX_REDIRECTS = 3
+MAX_STREAM_VALUES = 100_000
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 WINDOWS_RESERVED = {
     "CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))
 }
@@ -57,6 +63,12 @@ def validate_share_url(value: str) -> tuple[str, str]:
     if not provider:
         raise ConversationError("chatgpt.com 또는 claude.ai의 공유 링크만 지원합니다.", 400)
     path = parsed.path.rstrip("/")
+    if provider == "chatgpt" and re.fullmatch(r"/c/[A-Za-z0-9-]{8,100}", path):
+        raise ConversationError(
+            "개인 대화 주소는 가져올 수 없습니다. ChatGPT의 공유하기에서 공개 공유 링크를 만든 뒤 "
+            "https://chatgpt.com/share/… 주소를 입력해 주세요.",
+            400,
+        )
     if provider == "chatgpt" and not re.fullmatch(r"/share/[A-Za-z0-9-]{8,100}", path):
         raise ConversationError("ChatGPT 공유 링크 형식이 올바르지 않습니다.", 400)
     if provider == "claude" and not re.fullmatch(r"/share/[A-Za-z0-9-]{8,100}", path):
@@ -69,7 +81,7 @@ def fetch_share_page(url: str, http=None) -> tuple[str, str, str]:
     provider, current = validate_share_url(url)
     http = http or requests.Session()
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; SeoblueObsidian/1.0; +https://seo.xn--hu5b23z.com)",
+        "User-Agent": BROWSER_USER_AGENT,
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.7",
     }
@@ -90,7 +102,10 @@ def fetch_share_page(url: str, http=None) -> tuple[str, str, str]:
             continue
         if response.status_code in {401, 403}:
             response.close()
-            raise ConversationError("로그인 또는 접근 권한이 필요한 대화입니다.", 403)
+            raise ConversationError(
+                "공개 공유 페이지에 접근하지 못했습니다. 링크의 공유 상태를 확인한 뒤 다시 시도해 주세요.",
+                403,
+            )
         if response.status_code in {404, 410}:
             response.close()
             raise ConversationError("공유 링크가 없거나 만료·해제되었습니다.", 404)
@@ -112,6 +127,57 @@ def fetch_share_page(url: str, http=None) -> tuple[str, str, str]:
         response.close()
         return provider, current, bytes(content).decode(encoding, errors="replace")
     raise ConversationError("공유 페이지가 너무 많이 이동되어 가져오기를 중단했습니다.", 400)
+
+
+def fetch_chatgpt_share_data(url: str, http=None) -> dict:
+    provider, clean_url = validate_share_url(url)
+    if provider != "chatgpt":
+        raise ConversationError("ChatGPT 공개 공유 링크가 아닙니다.", 400)
+    share_id = urlsplit(clean_url).path.rstrip("/").rsplit("/", 1)[-1]
+    endpoint = f"https://chatgpt.com/backend-api/share/{share_id}"
+    http = http or requests.Session()
+    try:
+        response = http.get(
+            endpoint,
+            headers={
+                "User-Agent": BROWSER_USER_AGENT,
+                "Accept": "application/json",
+                "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.7",
+            },
+            timeout=20,
+            allow_redirects=False,
+            stream=True,
+        )
+    except requests.RequestException as exc:
+        raise ConversationError("공개 대화 데이터에 연결하지 못했습니다.", 502) from exc
+    if response.status_code in {401, 403}:
+        response.close()
+        raise ConversationError("공개 공유 대화에 접근하지 못했습니다. 공유 상태를 확인해 주세요.", 403)
+    if response.status_code in {404, 410}:
+        response.close()
+        raise ConversationError("공유 링크가 없거나 만료·해제되었습니다.", 404)
+    if response.status_code != 200:
+        status = response.status_code
+        response.close()
+        raise ConversationError(f"공개 대화 데이터를 가져오지 못했습니다. (HTTP {status})", 502)
+    content_type = response.headers.get("Content-Type", "")
+    if "application/json" not in content_type.lower():
+        response.close()
+        raise ConversationError("공개 대화 데이터 형식이 올바르지 않습니다.", 422)
+    content = bytearray()
+    for chunk in response.iter_content(64 * 1024):
+        content.extend(chunk)
+        if len(content) > MAX_PAGE_BYTES:
+            response.close()
+            raise ConversationError("공개 대화 데이터가 너무 커서 안전하게 처리할 수 없습니다.", 413)
+    response.close()
+    try:
+        data = json.loads(bytes(content).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ConversationError("공개 대화 데이터 형식이 올바르지 않습니다.", 422) from exc
+    if not isinstance(data, dict) or data.get("is_public") is False:
+        raise ConversationError("공개 상태인 공유 대화만 가져올 수 있습니다.", 403)
+    return data
 
 
 def _clean_text(value) -> str:
@@ -264,7 +330,118 @@ def _messages_from_scripts(soup: BeautifulSoup) -> list[Message]:
                 _walk_json(json.loads(candidate), messages, seen)
             except (json.JSONDecodeError, RecursionError):
                 continue
+        streamed = _messages_from_stream_script(raw)
+        for message in streamed:
+            key = (message.role, message.content)
+            if key not in seen:
+                messages.append(message)
+                seen.add(key)
     return messages
+
+
+def _decode_stream_table(raw: str):
+    """Decode ChatGPT's flattened React Router stream payload."""
+    match = re.search(r"streamController\.enqueue\((.*)\)\s*;?\s*$", raw, flags=re.S)
+    if not match:
+        return None
+    try:
+        encoded = json.loads(match.group(1))
+        table = json.loads(encoded)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(table, list) or not table or len(table) > MAX_STREAM_VALUES:
+        return None
+
+    cache: dict[int, object] = {}
+
+    def hydrate(reference):
+        if isinstance(reference, bool) or not isinstance(reference, int):
+            return reference
+        if reference < 0:
+            return None
+        if reference >= len(table):
+            raise ValueError("stream reference out of bounds")
+        if reference in cache:
+            return cache[reference]
+        value = table[reference]
+        if isinstance(value, dict):
+            result: dict[str, object] = {}
+            cache[reference] = result
+            for key_reference, child_reference in value.items():
+                if isinstance(key_reference, str) and re.fullmatch(r"_\d+", key_reference):
+                    key = hydrate(int(key_reference[1:]))
+                else:
+                    key = key_reference
+                result[str(key)] = hydrate(child_reference)
+            return result
+        if isinstance(value, list):
+            result_list: list[object] = []
+            cache[reference] = result_list
+            result_list.extend(hydrate(child) for child in value)
+            return result_list
+        cache[reference] = value
+        return value
+
+    try:
+        return hydrate(0)
+    except (RecursionError, ValueError):
+        return None
+
+
+def _messages_from_stream_script(raw: str) -> list[Message]:
+    root = _decode_stream_table(raw)
+    if not isinstance(root, dict):
+        return []
+    loader_data = root.get("loaderData")
+    if not isinstance(loader_data, dict):
+        return []
+    conversation_data = None
+    for route_data in loader_data.values():
+        if not isinstance(route_data, dict):
+            continue
+        response = route_data.get("serverResponse")
+        data = response.get("data") if isinstance(response, dict) else None
+        if isinstance(data, dict) and isinstance(data.get("linear_conversation"), list):
+            conversation_data = data
+            break
+    if not conversation_data:
+        return []
+
+    return _messages_from_linear_conversation(conversation_data["linear_conversation"])
+
+
+def _messages_from_linear_conversation(nodes: list) -> list[Message]:
+    messages: list[Message] = []
+    for node in nodes:
+        message = node.get("message") if isinstance(node, dict) else None
+        if not isinstance(message, dict):
+            continue
+        metadata = message.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("is_visually_hidden_from_conversation"):
+            continue
+        if str(message.get("recipient") or "all") != "all":
+            continue
+        message_content = message.get("content")
+        content_type = message_content.get("content_type", "text") if isinstance(message_content, dict) else ""
+        if content_type not in {"text", "multimodal_text"}:
+            continue
+        author = message.get("author")
+        role = _role(author.get("role") if isinstance(author, dict) else "")
+        content = _content_text(message_content)
+        if role and content:
+            messages.append(Message(role, content))
+    return messages
+
+
+def parse_chatgpt_share_data(source_url: str, data: dict) -> Conversation:
+    nodes = data.get("linear_conversation")
+    if not isinstance(nodes, list):
+        raise ConversationError("공개 대화 데이터에서 메시지 목록을 찾지 못했습니다.")
+    messages = _messages_from_linear_conversation(nodes)
+    if not messages:
+        raise ConversationError("공개 대화에서 변환 가능한 사용자·응답 메시지를 찾지 못했습니다.")
+    title = _clean_text(data.get("title") or data.get("og_title")) or "ChatGPT 대화"
+    return Conversation(provider="chatgpt", title=title, source_url=source_url, messages=messages)
 
 
 def parse_conversation(provider: str, source_url: str, html: str) -> Conversation:
@@ -281,7 +458,11 @@ def parse_conversation(provider: str, source_url: str, html: str) -> Conversatio
     if not messages:
         page_text = soup.get_text(" ", strip=True).lower()
         if any(term in page_text for term in ("log in", "sign in", "로그인", "access denied")):
-            raise ConversationError("로그인 또는 접근 권한이 필요한 대화입니다.", 403)
+            raise ConversationError(
+                "대화 데이터를 찾지 못했습니다. 개인 대화 주소라면 ChatGPT의 공유하기에서 "
+                "공개 공유 링크를 만든 뒤 다시 시도해 주세요.",
+                403,
+            )
         raise ConversationError("공유 페이지에서 대화 메시지를 찾지 못했습니다. 링크가 공개 상태인지 확인해 주세요.")
     return Conversation(provider=provider, title=title, source_url=source_url, messages=messages)
 
@@ -319,8 +500,18 @@ def conversation_to_markdown(conversation: Conversation, downloaded_at=None) -> 
 
 
 def convert_share_url(url: str, http=None) -> tuple[Conversation, str, str]:
-    provider, final_url, html = fetch_share_page(url, http=http)
-    conversation = parse_conversation(provider, final_url, html)
+    provider, clean_url = validate_share_url(url)
+    if provider == "chatgpt":
+        try:
+            conversation = parse_chatgpt_share_data(
+                clean_url,
+                fetch_chatgpt_share_data(clean_url, http=http),
+            )
+        except ConversationError:
+            provider, final_url, html = fetch_share_page(clean_url, http=http)
+            conversation = parse_conversation(provider, final_url, html)
+    else:
+        provider, final_url, html = fetch_share_page(clean_url, http=http)
+        conversation = parse_conversation(provider, final_url, html)
     markdown, filename = conversation_to_markdown(conversation)
     return conversation, markdown, filename
-

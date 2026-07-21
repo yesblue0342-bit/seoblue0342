@@ -171,7 +171,7 @@ def test_drive_requires_complete_oauth_configuration(monkeypatch):
     client = DriveClient()
 
     assert client.configured is False
-    with pytest.raises(DriveError, match="환경변수가 설정되지") as exc:
+    with pytest.raises(DriveError, match="연결 설정이 없습니다") as exc:
         client.list_files()
     assert exc.value.status == 503
 
@@ -194,9 +194,9 @@ def test_drive_accepts_and_normalizes_stella_oauth_aliases(monkeypatch):
 @pytest.mark.parametrize(
     ("oauth_error", "message"),
     [
-        ("invalid_client", "ID와 Secret 조합"),
+        ("invalid_client", "계정 인증에 실패"),
         ("invalid_grant", "만료 또는 폐기"),
-        ("temporarily_unavailable", "서버 자격증명"),
+        ("temporarily_unavailable", "서버 설정"),
     ],
 )
 def test_drive_oauth_errors_are_safe_and_actionable(monkeypatch, oauth_error, message):
@@ -235,7 +235,7 @@ def test_drive_verify_connection_rejects_limited_scope(monkeypatch):
         data={"scope": "https://www.googleapis.com/auth/drive.file"}
     )
 
-    with pytest.raises(DriveError, match="전체 접근 OAuth scope") as exc:
+    with pytest.raises(DriveError, match="전체 접근 권한") as exc:
         client.verify_connection(require_full_access=True)
     assert exc.value.status == 403
 
@@ -292,3 +292,26 @@ def test_drive_permission_error_is_user_safe(monkeypatch):
     with pytest.raises(DriveError, match="권한이 부족") as exc:
         client.list_files()
     assert exc.value.status == 403
+
+
+def test_file_page_is_provider_neutral_and_has_theme_toggle(client):
+    login(client)
+    change_password(client)
+
+    html = client.get("/g-drive").get_data(as_text=True)
+
+    assert "<h1>파일</h1>" in html
+    assert "data-theme-toggle" in html
+    for provider_name in ("G-Drive", "Google Drive", "GOOGLE DRIVE", "내 드라이브"):
+        assert provider_name not in html
+
+
+def test_obsidian_page_explains_public_share_without_api_key(client):
+    login(client)
+    change_password(client)
+
+    html = client.get("/obsidian-download").get_data(as_text=True)
+
+    assert "/c/…" in html and "/share/…" in html
+    assert "OpenAI API 키는 필요하지 않습니다" in html
+    assert "data-theme-toggle" in html

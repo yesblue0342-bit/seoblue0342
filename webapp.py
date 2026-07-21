@@ -134,27 +134,38 @@ SHELL_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>이후 소설가 — 네이버 SEO 대시보드</title>
+<script>
+  (() => {{
+    const saved = localStorage.getItem('seoblue-theme');
+    document.documentElement.dataset.theme = saved === 'dark' ? 'dark' : 'light';
+  }})();
+</script>
 <style>
+  :root {{ color-scheme:light; --bg:#fff; --surface:#fff; --text:#111; --muted:#666; --line:#d8d8d8; --soft:#f5f5f5; }}
+  :root[data-theme="dark"] {{ color-scheme:dark; --bg:#000; --surface:#000; --text:#fff; --muted:#aaa; --line:#444; --soft:#111; }}
   * {{ box-sizing: border-box; }}
   html, body {{ height:100%; }}
   body {{ margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
-          background:#f6f7f9; display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }}
+          background:var(--bg); color:var(--text); display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }}
   .bar {{ position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:8px 14px; flex-wrap:wrap;
-          background:#16a34a; color:#fff; padding:12px 18px; box-shadow:0 1px 4px rgba(0,0,0,.15); }}
+          background:var(--surface); color:var(--text); padding:12px 18px; border-bottom:1px solid var(--line); }}
   .bar h1 {{ font-size:16px; margin:0; flex:1 1 auto; min-width:0; line-height:1.3; font-weight:700; }}
   .bar h1 .sub {{ font-weight:500; opacity:.92; }}
   .bar .meta {{ font-size:12px; opacity:.92; line-height:1.35; }}
   .app-nav {{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }}
-  .app-nav a {{ color:#166534; background:#fff; border-radius:8px; padding:7px 10px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap; }}
-  .app-nav a:hover {{ background:#dcfce7; }}
-  .btn {{ background:#fff; color:#15803d; border:none; border-radius:8px; padding:8px 16px;
+  .app-nav a {{ color:var(--text); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap; }}
+  .app-nav a:hover {{ background:var(--soft); }}
+  .btn {{ background:var(--surface); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 16px;
           font-weight:700; cursor:pointer; font-size:14px; white-space:nowrap; }}
+  .btn:hover {{ background:var(--soft); }}
   .btn:disabled {{ opacity:.6; cursor:default; }}
-  iframe {{ flex:1 1 auto; width:100%; min-height:0; border:none; background:#fff; }}
-  .empty {{ max-width:560px; margin:64px auto; padding:0 20px; text-align:center; color:#374151; }}
-  .empty h2 {{ color:#16a34a; }}
-  .spinner {{ display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4);
-              border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; }}
+  iframe {{ flex:1 1 auto; width:100%; min-height:0; border:none; background:var(--bg); }}
+  .empty {{ max-width:560px; margin:64px auto; padding:0 20px; text-align:center; color:var(--muted); }}
+  .empty h2 {{ color:var(--text); }}
+  .error {{ color:var(--text); border-left:3px double var(--text); padding-left:10px; }}
+  .spinner {{ display:inline-block; width:14px; height:14px; border:2px solid var(--line);
+              border-top-color:var(--text); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; }}
+  :focus-visible {{ outline:2px solid var(--text); outline-offset:2px; }}
   @keyframes spin {{ to {{ transform:rotate(360deg); }} }}
   /* ── 모바일: 제목이 한 글자씩 세로로 깨지던 문제 수정 ── */
   @media (max-width:600px) {{
@@ -170,13 +181,14 @@ SHELL_HTML = """<!DOCTYPE html>
 </head>
 <body>
   <div class="bar">
-    <h1>📈 이후 소설가 <span class="sub">— 네이버 SEO 대시보드</span></h1>
+    <h1>이후 소설가 <span class="sub">— 네이버 SEO 대시보드</span></h1>
     <nav class="app-nav" aria-label="앱 메뉴">
-      <a href="/g-drive">G-Drive</a>
+      <a href="/g-drive">파일</a>
       <a href="/obsidian-download">Obsidian Download</a>
     </nav>
     <span class="meta" id="meta">{meta}</span>
-    <button class="btn" id="run" onclick="runAnalysis()">🔄 다시 분석</button>
+    <button class="btn" type="button" data-theme-toggle aria-pressed="false">Dark mode</button>
+    <button class="btn" id="run" onclick="runAnalysis()">다시 분석</button>
   </div>
   {content}
 <script>
@@ -203,6 +215,7 @@ SHELL_HTML = """<!DOCTYPE html>
   }}
   poll();
 </script>
+<script src="/static/theme.js" defer></script>
 </body>
 </html>"""
 
@@ -223,10 +236,10 @@ def index():
     if has_report:
         content = '<iframe src="/report" title="SEO 리포트"></iframe>'
     else:
-        err = f'<p style="color:#dc2626">직전 오류: {STATUS["error"]}</p>' if STATUS.get("error") else ""
+        err = f'<p class="error">직전 오류: {STATUS["error"]}</p>' if STATUS.get("error") else ""
         content = (
             '<div class="empty"><h2>아직 분석 결과가 없습니다</h2>'
-            '<p>오른쪽 위 <b>🔄 다시 분석</b> 버튼을 누르면 네이버 순위와 '
+            '<p>오른쪽 위 <b>다시 분석</b> 버튼을 누르면 네이버 순위와 '
             '홈페이지·위키백과·나무위키·교보문고·구글·유튜브 SEO를 분석합니다.</p>'
             f'{err}</div>'
         )
