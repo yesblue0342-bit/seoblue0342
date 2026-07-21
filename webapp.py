@@ -262,6 +262,7 @@ def healthz():
     return jsonify({
         "ok": True,
         "drive_configured": drive.configured,
+        "drive_writes_enabled": drive.writes_enabled,
         # Required accounts are seeded with the built-in admin hash when no override is set.
         "initial_seed_configured": True,
     })

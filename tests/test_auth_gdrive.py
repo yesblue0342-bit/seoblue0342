@@ -12,6 +12,20 @@ from auth import init_auth_db, seed_initial_users
 from drive_service import DriveClient, DriveError
 
 
+DRIVE_ENV_NAMES = (
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_DRIVE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "GOOGLE_DRIVE_CLIENT_SECRET",
+    "GOOGLE_REFRESH_TOKEN",
+    "GOOGLE_DRIVE_REFRESH_TOKEN",
+    "GOOGLE_OAUTH_REFRESH_TOKEN",
+    "DRIVE_REFRESH_TOKEN",
+)
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("SEO_INITIAL_PASSWORD", "admin")
@@ -137,6 +151,8 @@ class FakeResponse:
 
 
 def drive_client(monkeypatch):
+    for name in DRIVE_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "client")
     monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secret")
     monkeypatch.setenv("GOOGLE_REFRESH_TOKEN", "refresh")
@@ -144,6 +160,98 @@ def drive_client(monkeypatch):
     client._access_token = "access"
     client._expires_at = time.time() + 3600
     return client
+
+
+def test_drive_requires_complete_oauth_configuration(monkeypatch):
+    for name in DRIVE_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secret")
+
+    client = DriveClient()
+
+    assert client.configured is False
+    with pytest.raises(DriveError, match="환경변수가 설정되지") as exc:
+        client.list_files()
+    assert exc.value.status == 503
+
+
+def test_drive_accepts_and_normalizes_stella_oauth_aliases(monkeypatch):
+    for name in DRIVE_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", ' "client.apps.googleusercontent.com" ')
+    monkeypatch.setenv("GOOGLE_DRIVE_CLIENT_SECRET", " 'GOCSPX-secret' ")
+    monkeypatch.setenv("GOOGLE_DRIVE_REFRESH_TOKEN", 'Bearer 1//refresh')
+
+    client = DriveClient()
+
+    assert client.configured is True
+    assert client.client_id == "client.apps.googleusercontent.com"
+    assert client.client_secret == "GOCSPX-secret"
+    assert client.refresh_token == "1//refresh"
+
+
+@pytest.mark.parametrize(
+    ("oauth_error", "message"),
+    [
+        ("invalid_client", "ID와 Secret 조합"),
+        ("invalid_grant", "만료 또는 폐기"),
+        ("temporarily_unavailable", "서버 자격증명"),
+    ],
+)
+def test_drive_oauth_errors_are_safe_and_actionable(monkeypatch, oauth_error, message):
+    client = drive_client(monkeypatch)
+    client._access_token = ""
+    client.http.post = lambda *args, **kwargs: FakeResponse(
+        status_code=400,
+        data={"error": oauth_error, "error_description": "sensitive provider detail"},
+    )
+
+    with pytest.raises(DriveError, match=message) as exc:
+        client.list_files()
+    assert exc.value.status == 503
+    assert "sensitive" not in str(exc.value)
+
+
+def test_drive_verify_connection_confirms_full_scope(monkeypatch):
+    client = drive_client(monkeypatch)
+    client._scope = "openid https://www.googleapis.com/auth/drive"
+    client.http.request = lambda *args, **kwargs: FakeResponse(
+        data={"user": {"permissionId": "permission"}}
+    )
+
+    result = client.verify_connection(require_full_access=True)
+
+    assert result == {"connected": True, "fullAccess": True}
+
+
+def test_drive_verify_connection_rejects_limited_scope(monkeypatch):
+    client = drive_client(monkeypatch)
+    client._scope = "https://www.googleapis.com/auth/drive.file"
+    client.http.request = lambda *args, **kwargs: FakeResponse(
+        data={"user": {"permissionId": "permission"}}
+    )
+    client.http.get = lambda *args, **kwargs: FakeResponse(
+        data={"scope": "https://www.googleapis.com/auth/drive.file"}
+    )
+
+    with pytest.raises(DriveError, match="전체 접근 OAuth scope") as exc:
+        client.verify_connection(require_full_access=True)
+    assert exc.value.status == 403
+
+
+def test_health_reports_drive_configuration_and_write_flag(client, monkeypatch):
+    class FakeDrive:
+        configured = True
+        writes_enabled = True
+
+    monkeypatch.setattr(webapp, "get_drive_client", lambda: FakeDrive())
+
+    response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.get_json()["drive_configured"] is True
+    assert response.get_json()["drive_writes_enabled"] is True
 
 
 def test_drive_list_maps_folders_and_escapes_search(monkeypatch):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ import requests
 
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
+FULL_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
 GOOGLE_NATIVE_EXPORTS = {
     "application/vnd.google-apps.document": (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -28,6 +30,21 @@ GOOGLE_NATIVE_EXPORTS = {
         ".pptx",
     ),
     "application/vnd.google-apps.drawing": ("image/png", ".png"),
+}
+
+DRIVE_ENV_ALIASES = {
+    "client_id": ("GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_DRIVE_CLIENT_ID"),
+    "client_secret": (
+        "GOOGLE_CLIENT_SECRET",
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+        "GOOGLE_DRIVE_CLIENT_SECRET",
+    ),
+    "refresh_token": (
+        "GOOGLE_REFRESH_TOKEN",
+        "GOOGLE_DRIVE_REFRESH_TOKEN",
+        "GOOGLE_OAUTH_REFRESH_TOKEN",
+        "DRIVE_REFRESH_TOKEN",
+    ),
 }
 
 
@@ -48,14 +65,30 @@ def _escape_query(value: str) -> str:
     return str(value).replace("\\", "\\\\").replace("'", "\\'")
 
 
+def _normalize_env_value(value: str | None) -> str:
+    """Normalize values copied from dotenv files without exposing them."""
+    normalized = str(value or "").strip()
+    if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {"'", '"'}:
+        normalized = normalized[1:-1].strip()
+    return re.sub(r"^Bearer\s+", "", normalized, flags=re.IGNORECASE).strip()
+
+
+def _env_any(names: tuple[str, ...]) -> str:
+    for name in names:
+        value = _normalize_env_value(os.environ.get(name))
+        if value:
+            return value
+    return ""
+
+
 class DriveClient:
     api_base = "https://www.googleapis.com/drive/v3"
     upload_base = "https://www.googleapis.com/upload/drive/v3"
 
     def __init__(self) -> None:
-        self.client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-        self.client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-        self.refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+        self.client_id = _env_any(DRIVE_ENV_ALIASES["client_id"])
+        self.client_secret = _env_any(DRIVE_ENV_ALIASES["client_secret"])
+        self.refresh_token = _env_any(DRIVE_ENV_ALIASES["refresh_token"])
         self.writes_enabled = os.environ.get("SEO_DRIVE_WRITES_ENABLED", "0") == "1"
         self._access_token = ""
         self._expires_at = 0.0
@@ -74,6 +107,25 @@ class DriveClient:
             "scope": self._scope,
             "uploadLimitMb": 25,
         }
+
+    def verify_connection(self, require_full_access: bool = False) -> dict:
+        """Verify token exchange, Drive API access, and optionally the full Drive scope."""
+        self._json("GET", "/about", params={"fields": "user(permissionId)"})
+        scopes = set(self._scope.split())
+        if require_full_access and FULL_DRIVE_SCOPE not in scopes:
+            try:
+                response = self.http.get(
+                    "https://oauth2.googleapis.com/tokeninfo",
+                    params={"access_token": self._token()},
+                    timeout=15,
+                )
+                if response.status_code == 200:
+                    scopes.update(str(response.json().get("scope", "")).split())
+            except (requests.RequestException, AttributeError, ValueError):
+                pass
+        if require_full_access and FULL_DRIVE_SCOPE not in scopes:
+            raise DriveError("Google Drive 전체 접근 OAuth scope가 확인되지 않았습니다.", 403)
+        return {"connected": True, "fullAccess": FULL_DRIVE_SCOPE in scopes}
 
     def _token(self, force: bool = False) -> str:
         if not self.configured:
@@ -95,7 +147,17 @@ class DriveClient:
             except requests.RequestException as exc:
                 raise DriveError("Google 인증 서버에 연결하지 못했습니다.") from exc
             if response.status_code != 200:
-                raise DriveError("Google Drive 인증에 실패했습니다. 서버 자격증명을 확인해 주세요.", 503)
+                try:
+                    oauth_error = response.json().get("error", "")
+                except (AttributeError, ValueError):
+                    oauth_error = ""
+                if oauth_error == "invalid_client":
+                    message = "Google OAuth 클라이언트 인증에 실패했습니다. ID와 Secret 조합을 확인해 주세요."
+                elif oauth_error == "invalid_grant":
+                    message = "Google Drive 인증 토큰이 만료 또는 폐기되었습니다. 토큰을 다시 발급해 주세요."
+                else:
+                    message = "Google Drive 인증에 실패했습니다. 서버 자격증명을 확인해 주세요."
+                raise DriveError(message, 503)
             try:
                 data = response.json()
             except ValueError as exc:

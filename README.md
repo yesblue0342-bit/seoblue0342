@@ -51,6 +51,14 @@ GOOGLE_REFRESH_TOKEN=
 SEO_DRIVE_WRITES_ENABLED=0
 ```
 
+OCI 자동 배포에서는 앱 `.env`에 세 값이 없을 때 `/opt/stella-ai-workspace/.env`에서
+Google Drive OAuth 자격증명 세 개만 추출해 임시 파일로 주입합니다. Stella의
+`GOOGLE_OAUTH_*`, `GOOGLE_DRIVE_*`, `DRIVE_REFRESH_TOKEN` 별칭도 인식하며, OpenAI·DB 등
+Stella의 다른 비밀값은 G-Drive 컨테이너에 전달하지 않습니다. 앱 `.env` 값이 있으면 항상
+그 값을 우선합니다. Stella 경로가 다르면 배포 시 `STELLA_ENV_FILE`로 지정할 수 있습니다.
+OCI 배포는 `SEO_DRIVE_WRITES_ENABLED=1`을 적용하고 실제 토큰 교환·Drive API 접근·
+`https://www.googleapis.com/auth/drive` 전체 scope까지 확인해야 성공 처리됩니다.
+
 목록, 폴더 이동, 상위 경로, 파일명 검색, 메타데이터 표시와 다운로드는 Drive API 연결 후 사용할 수 있습니다. Google Docs/Sheets/Slides는 각각 DOCX/XLSX/PPTX로 export합니다. 업로드·새 폴더·이름 변경·이동·휴지통 기능은 실제 refresh token의 OAuth scope가 쓰기를 허용하는지 확인한 뒤에만 `SEO_DRIVE_WRITES_ENABLED=1`로 활성화합니다. 쓰기 권한이 없거나 API가 403을 반환하면 앱은 읽기 전용으로 유지하고 권한 안내를 표시합니다. 웹 업로드 상한은 25MB입니다.
 
 ## Obsidian Download 저장 방식
