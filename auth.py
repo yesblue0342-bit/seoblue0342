@@ -30,6 +30,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 auth_bp = Blueprint("auth", __name__)
 INITIAL_USERS = ("admin", "yesblue0342")
+# Bootstrap credential is represented only as a scrypt hash; plaintext is never stored.
+DEFAULT_INITIAL_PASSWORD_HASH = "scrypt:32768:8:1$8BJ7Gd9AecFFx3Pd$d77ae4be44cc16c662b327e1e66c479b098e8492af29cfc1668765b26ec67a7e1375b850c778d52412ea26ac1bd55ae268aa4f7e1831a5f94fc69c54a875bcc6"
 LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_MAX_FAILURES = 5
 
@@ -83,14 +85,13 @@ def init_auth_db() -> None:
 
 
 def seed_initial_users() -> int:
-    """Seed required accounts only when the deployment supplies the temporary password."""
+    """Seed both required accounts, preferring an operator-supplied password."""
     initial_password = os.environ.get("SEO_INITIAL_PASSWORD", "")
-    if not initial_password:
-        current_app.logger.warning(
-            "SEO_INITIAL_PASSWORD is unset; missing initial accounts were not created."
-        )
-        return 0
-    password_hash = generate_password_hash(initial_password, method="scrypt")
+    password_hash = (
+        generate_password_hash(initial_password, method="scrypt")
+        if initial_password
+        else DEFAULT_INITIAL_PASSWORD_HASH
+    )
     now = int(time.time())
     created = 0
     with _connect() as conn:
@@ -289,4 +290,3 @@ def change_password():
                 flash("비밀번호가 변경되었습니다.", "success")
                 return redirect(url_for("g_drive_page"))
     return render_template("change_password.html")
-
