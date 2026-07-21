@@ -262,7 +262,8 @@ def healthz():
     return jsonify({
         "ok": True,
         "drive_configured": drive.configured,
-        "initial_seed_configured": bool(os.environ.get("SEO_INITIAL_PASSWORD")),
+        # Required accounts are seeded with the built-in admin hash when no override is set.
+        "initial_seed_configured": True,
     })
 
 
