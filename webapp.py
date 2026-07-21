@@ -144,6 +144,9 @@ SHELL_HTML = """<!DOCTYPE html>
   .bar h1 {{ font-size:16px; margin:0; flex:1 1 auto; min-width:0; line-height:1.3; font-weight:700; }}
   .bar h1 .sub {{ font-weight:500; opacity:.92; }}
   .bar .meta {{ font-size:12px; opacity:.92; line-height:1.35; }}
+  .app-nav {{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }}
+  .app-nav a {{ color:#166534; background:#fff; border-radius:8px; padding:7px 10px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap; }}
+  .app-nav a:hover {{ background:#dcfce7; }}
   .btn {{ background:#fff; color:#15803d; border:none; border-radius:8px; padding:8px 16px;
           font-weight:700; cursor:pointer; font-size:14px; white-space:nowrap; }}
   .btn:disabled {{ opacity:.6; cursor:default; }}
@@ -159,13 +162,19 @@ SHELL_HTML = """<!DOCTYPE html>
     .bar h1 {{ flex:1 1 100%; font-size:15px; }}
     .bar h1 .sub {{ display:block; font-size:12px; opacity:.85; margin-top:1px; }}
     .bar .meta {{ order:2; flex:1 1 auto; font-size:11px; }}
-    .btn {{ order:3; margin-left:auto; padding:7px 12px; font-size:13px; }}
+    .app-nav {{ order:3; flex:1 1 100%; overflow:auto; }}
+    .app-nav a {{ font-size:11px; padding:6px 9px; }}
+    .btn {{ order:4; margin-left:auto; padding:7px 12px; font-size:13px; }}
   }}
 </style>
 </head>
 <body>
   <div class="bar">
     <h1>📈 이후 소설가 <span class="sub">— 네이버 SEO 대시보드</span></h1>
+    <nav class="app-nav" aria-label="앱 메뉴">
+      <a href="/g-drive">G-Drive</a>
+      <a href="/obsidian-download">Obsidian Download</a>
+    </nav>
     <span class="meta" id="meta">{meta}</span>
     <button class="btn" id="run" onclick="runAnalysis()">🔄 다시 분석</button>
   </div>
