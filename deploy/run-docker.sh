@@ -5,6 +5,7 @@ set -euo pipefail
 
 NETWORK=npm_default
 NAME=seoblue0342
+DATA_VOLUME=seoblue0342-data
 
 cd "$(dirname "$0")/.."
 
@@ -24,14 +25,15 @@ if [ -f "$PWD/.env" ]; then
   ENV_ARG="--env-file $PWD/.env"
   echo "▶ .env 발견 — 환경변수 주입 ($PWD/.env)"
 else
-  echo "⚠️ .env 없음 — SERPER_API_KEY 미주입 상태로 실행됨."
-  echo "   호스트 앱 루트($PWD)에 .env 파일을 만들고 'SERPER_API_KEY=발급키' 한 줄을 넣으세요."
+  echo "⚠️ .env 없음 — 인증·Drive·SEO API 환경변수가 주입되지 않습니다."
+  echo "   호스트 앱 루트($PWD)에서 '.env.example'을 참고해 .env를 작성하세요."
 fi
 
 echo "▶ $NETWORK 네트워크에 컨테이너 실행"
 sudo docker run -d --name "$NAME" \
   --network "$NETWORK" \
   --restart unless-stopped \
+  --volume "$DATA_VOLUME:/app/data" \
   $ENV_ARG \
   "$NAME"
 

@@ -16,6 +16,7 @@ COPY . .
 
 # 런타임 데이터 디렉토리
 ENV SEO_DATA_DIR=/app/data
+ENV SEO_AUTH_DB_PATH=/app/data/auth.db
 RUN mkdir -p /app/data
 
 EXPOSE 8842

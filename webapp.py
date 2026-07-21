@@ -12,12 +12,19 @@ seoblue0342 — 웹 진입점 (OCI 서버 배포용)
 
 import os
 import json
+import re
+import secrets
 import threading
 from datetime import datetime
+from urllib.parse import quote
 
-from flask import Flask, Response, redirect, send_file, jsonify
+from flask import Flask, Response, redirect, send_file, jsonify, render_template, request, stream_with_context
+from werkzeug.exceptions import HTTPException
 
+from auth import app_access_required, init_auth
 from config import SEARCH_KEYWORD
+from conversation_parser import ConversationError, convert_share_url
+from drive_service import DriveError, get_drive_client
 from seo_analyzer import run_full_analysis
 from rank_monitor import init_db, check_my_rank, save_rank_result
 from report_generator import generate_html_report
@@ -31,6 +38,37 @@ STATUS_PATH = os.path.join(DATA_DIR, "status.json")
 DB_PATH = os.path.join(DATA_DIR, "rank_history.db")
 
 app = Flask(__name__)
+app.config.update(
+    DATA_DIR=DATA_DIR,
+    AUTH_DB_PATH=os.environ.get("SEO_AUTH_DB_PATH", os.path.join(DATA_DIR, "auth.db")),
+    MAX_CONTENT_LENGTH=25 * 1024 * 1024,
+)
+app.secret_key = os.environ.get("SEO_SESSION_SECRET") or secrets.token_bytes(48)
+if not os.environ.get("SEO_SESSION_SECRET"):
+    app.logger.warning("SEO_SESSION_SECRET is unset; sessions will reset when the process restarts.")
+init_auth(app)
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; connect-src 'self'; frame-src 'self'; base-uri 'self'; "
+        "form-action 'self'; object-src 'none'",
+    )
+    return response
+
+
+@app.errorhandler(HTTPException)
+def handle_http_error(error):
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "error": error.description}), error.code
+    return error
 
 # ── 분석 상태 (메모리 + 파일 영속) ───────────────────────────
 STATUS = {"running": False, "started": None, "finished": None, "error": None}
@@ -211,7 +249,173 @@ def status():
 
 @app.route("/healthz")
 def healthz():
-    return jsonify({"ok": True})
+    drive = get_drive_client()
+    return jsonify({
+        "ok": True,
+        "drive_configured": drive.configured,
+        "initial_seed_configured": bool(os.environ.get("SEO_INITIAL_PASSWORD")),
+    })
+
+
+@app.route("/g-drive")
+@app_access_required
+def g_drive_page():
+    return render_template("g_drive.html")
+
+
+def _drive_id(value, field="file_id", allow_root=False):
+    value = str(value or "").strip()
+    if allow_root and (not value or value == "root"):
+        return "root"
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", value):
+        raise DriveError(f"{field} 형식이 올바르지 않습니다.", 400)
+    return value
+
+
+def _drive_name(value):
+    value = str(value or "").strip()
+    if not value or len(value) > 255 or any(ord(ch) < 32 for ch in value) or "/" in value or "\\" in value:
+        raise DriveError("파일 또는 폴더 이름이 올바르지 않습니다.", 400)
+    return value
+
+
+def _drive_error(exc):
+    return jsonify({"ok": False, "error": str(exc)}), exc.status
+
+
+@app.get("/api/g-drive/capabilities")
+@app_access_required
+def drive_capabilities():
+    return jsonify({"ok": True, **get_drive_client().capabilities()})
+
+
+@app.get("/api/g-drive/files")
+@app_access_required
+def drive_files():
+    try:
+        folder_id = _drive_id(request.args.get("folder_id"), "folder_id", allow_root=True)
+        search = request.args.get("q", "").strip()[:100]
+        page_token = request.args.get("page_token", "").strip()
+        if page_token and not re.fullmatch(r"[A-Za-z0-9_.=-]{1,1000}", page_token):
+            raise DriveError("page_token 형식이 올바르지 않습니다.", 400)
+        return jsonify({"ok": True, **get_drive_client().list_files(folder_id, search, page_token)})
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.get("/api/g-drive/download/<file_id>")
+@app_access_required
+def drive_download(file_id):
+    try:
+        result = get_drive_client().download(_drive_id(file_id))
+
+        def generate():
+            try:
+                yield from result.response.iter_content(chunk_size=64 * 1024)
+            finally:
+                result.response.close()
+
+        response = Response(stream_with_context(generate()), content_type=result.content_type)
+        response.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(result.filename)}"
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.post("/api/g-drive/folder")
+@app_access_required
+def drive_create_folder():
+    try:
+        body = request.get_json(silent=True) or {}
+        item = get_drive_client().create_folder(
+            _drive_id(body.get("parent_id"), "parent_id", allow_root=True),
+            _drive_name(body.get("name")),
+        )
+        return jsonify({"ok": True, "file": item}), 201
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.post("/api/g-drive/upload")
+@app_access_required
+def drive_upload():
+    try:
+        uploaded = request.files.get("file")
+        if not uploaded or not uploaded.filename:
+            raise DriveError("업로드할 파일을 선택해 주세요.", 400)
+        name = _drive_name(uploaded.filename)
+        item = get_drive_client().upload(
+            _drive_id(request.form.get("parent_id"), "parent_id", allow_root=True),
+            name,
+            uploaded.mimetype or "application/octet-stream",
+            uploaded.stream,
+        )
+        return jsonify({"ok": True, "file": item}), 201
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.post("/api/g-drive/rename")
+@app_access_required
+def drive_rename():
+    try:
+        body = request.get_json(silent=True) or {}
+        item = get_drive_client().rename(_drive_id(body.get("file_id")), _drive_name(body.get("name")))
+        return jsonify({"ok": True, "file": item})
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.post("/api/g-drive/move")
+@app_access_required
+def drive_move():
+    try:
+        body = request.get_json(silent=True) or {}
+        item = get_drive_client().move(
+            _drive_id(body.get("file_id")),
+            _drive_id(body.get("target_parent_id"), "target_parent_id"),
+        )
+        return jsonify({"ok": True, "file": item})
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.post("/api/g-drive/delete")
+@app_access_required
+def drive_delete():
+    try:
+        body = request.get_json(silent=True) or {}
+        if body.get("confirm") is not True:
+            raise DriveError("삭제 확인이 필요합니다.", 400)
+        item = get_drive_client().trash(_drive_id(body.get("file_id")))
+        return jsonify({"ok": True, "file": item})
+    except DriveError as exc:
+        return _drive_error(exc)
+
+
+@app.route("/obsidian-download")
+@app_access_required
+def obsidian_download_page():
+    return render_template("obsidian_download.html")
+
+
+@app.post("/api/obsidian/convert")
+@app_access_required
+def obsidian_convert():
+    try:
+        body = request.get_json(silent=True) or {}
+        conversation, markdown, filename = convert_share_url(body.get("url", ""))
+        return jsonify({
+            "ok": True,
+            "title": conversation.title,
+            "provider": conversation.provider,
+            "messageCount": len(conversation.messages),
+            "filename": filename,
+            "markdown": markdown,
+        })
+    except ConversationError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), exc.status
 
 
 def request_is_get():

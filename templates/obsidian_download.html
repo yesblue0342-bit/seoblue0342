@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Obsidian Download · 이후 도구{% endblock %}
+{% block content %}
+<section class="app-heading">
+  <div><p class="eyebrow">CONVERSATION TO MARKDOWN</p><h1>Obsidian Download</h1><p class="muted">공개 ChatGPT 또는 Claude 공유 링크를 Obsidian용 Markdown으로 변환합니다.</p></div>
+</section>
+
+<section class="converter-grid">
+  <div class="converter-card">
+    <form id="convert-form" class="stack-form">
+      <label for="share-url">공유 링크</label>
+      <input id="share-url" name="url" type="url" inputmode="url" placeholder="https://chatgpt.com/share/… 또는 https://claude.ai/share/…" required>
+      <button id="convert-button" class="primary-button" type="submit">가져와서 변환</button>
+    </form>
+    <div id="convert-message" class="inline-message" role="status" aria-live="polite"></div>
+    <div class="privacy-note"><strong>개인정보 보호</strong><p>입력한 링크와 대화 내용은 서버 DB에 저장하지 않습니다. 공개 공유 페이지에 접근할 수 있는 동안에만 변환합니다.</p></div>
+  </div>
+  <aside class="folder-card" aria-labelledby="folder-title">
+    <p class="eyebrow">SAVE LOCATION</p><h2 id="folder-title">저장 폴더</h2>
+    <p>권장 기본 폴더: <code>C:\obsidian\download</code></p>
+    <p class="muted small">브라우저 보안상 사이트가 이 경로를 자동 선택할 수 없습니다. Chromium에서 최초 1회 폴더를 직접 선택하면 권한 handle을 이 브라우저의 IndexedDB에 기억합니다.</p>
+    <button id="choose-folder" type="button">폴더 선택 또는 변경</button>
+    <div id="folder-status" class="folder-status">선택된 폴더 없음 · 일반 다운로드 사용</div>
+  </aside>
+</section>
+
+<section id="preview-section" class="preview-card" hidden>
+  <div class="preview-head"><div><p class="eyebrow">PREVIEW</p><h2 id="preview-title">미리보기</h2></div><button id="save-markdown" class="primary-button" type="button">Markdown 저장</button></div>
+  <pre id="markdown-preview" tabindex="0"></pre>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='obsidian.js') }}" defer></script>{% endblock %}

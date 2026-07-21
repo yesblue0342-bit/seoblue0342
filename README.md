@@ -1,6 +1,10 @@
-# 📈 이후 소설가 — 네이버 SEO 최적화 도구
+# 이후 도구 — SEO · G-Drive · Obsidian Download
 
-네이버에서 "이후" 검색 시 소설가 이후의 정보가 **상위 노출**되도록 돕는 SEO 분석·모니터링 도구입니다.
+`seo.이후.com`에서 SEO 분석과 인증 기반 파일·대화 변환 도구를 함께 제공합니다.
+
+- `/` — 기존 네이버 SEO 분석 대시보드
+- `/g-drive` — Google Drive 파일 탐색·검색·다운로드, 권한 확인 후 선택적 쓰기
+- `/obsidian-download` — 공개 ChatGPT/Claude 공유 링크를 Obsidian용 Markdown으로 변환
 
 ---
 
@@ -10,12 +14,52 @@
 # 의존성 설치
 pip install requests beautifulsoup4 rich lxml
 
+# 웹앱 환경변수 준비
+cp .env.example .env
+# .env에 SEO_SESSION_SECRET, SEO_INITIAL_PASSWORD 및 필요한 Google OAuth 값을 입력
+
+# Windows PowerShell에서는: Copy-Item .env.example .env
+
 # 전체 분석 실행 (순위 체크 + SEO 분석 + 리포트 생성)
 python main.py
 
 # 리포트를 특정 폴더에 저장
 python main.py --output-dir ./reports
+
+# 웹앱 실행 (로컬 HTTP에서는 .env의 SEO_COOKIE_SECURE=0)
+python webapp.py
 ```
+
+## 계정 및 보안
+
+최초 실행 시 `SEO_INITIAL_PASSWORD`가 설정되어 있으면 `admin`, `yesblue0342` 두 계정을 SQLite에 scrypt 해시로 생성합니다. 두 계정은 최초 로그인 직후 비밀번호를 변경하기 전까지 G-Drive와 Obsidian Download 페이지 및 API를 사용할 수 없습니다. 변경을 마치면 운영 `.env`에서 `SEO_INITIAL_PASSWORD`를 제거합니다.
+
+- 운영 세션 쿠키: `HttpOnly`, `Secure`, `SameSite=Lax`, 8시간 만료
+- 로그인: IP+아이디 기준 15분 구간에서 5회 실패 시 일시 잠금
+- 상태 변경 API: 세션 인증과 CSRF 토큰을 모두 검증
+- 계정/로그인 데이터: Docker 명명 볼륨 `seoblue0342-data`의 `/app/data/auth.db`
+- 비밀값과 OAuth 토큰은 서버 환경변수에만 저장되며 HTML/JavaScript로 전달하지 않음
+
+## G-Drive 설정
+
+Stella 앱과 같은 환경변수 이름을 사용합니다.
+
+```dotenv
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+SEO_DRIVE_WRITES_ENABLED=0
+```
+
+목록, 폴더 이동, 상위 경로, 파일명 검색, 메타데이터 표시와 다운로드는 Drive API 연결 후 사용할 수 있습니다. Google Docs/Sheets/Slides는 각각 DOCX/XLSX/PPTX로 export합니다. 업로드·새 폴더·이름 변경·이동·휴지통 기능은 실제 refresh token의 OAuth scope가 쓰기를 허용하는지 확인한 뒤에만 `SEO_DRIVE_WRITES_ENABLED=1`로 활성화합니다. 쓰기 권한이 없거나 API가 403을 반환하면 앱은 읽기 전용으로 유지하고 권한 안내를 표시합니다. 웹 업로드 상한은 25MB입니다.
+
+## Obsidian Download 저장 방식
+
+지원 URL은 `https://chatgpt.com/share/<id>`와 `https://claude.ai/share/<id>` 형식의 접근 가능한 공유 스냅샷입니다. 비공개, 조직 전용, 로그인 필요, 만료·해제 링크는 우회하지 않고 오류로 안내합니다. 변환 결과에는 제목, 원본 URL, provider, 다운로드 시각을 YAML frontmatter로 기록하며 사용자/AI 역할, 코드 블록, 표, 목록, 링크를 가능한 범위에서 보존합니다.
+
+브라우저는 `C:\obsidian\download`를 임의로 선택하거나 서버가 Windows 경로에 직접 쓸 수 없습니다. Chromium 계열에서는 사용자가 최초 1회 폴더를 선택하면 File System Access API의 directory handle을 브라우저 IndexedDB에 저장하고 다음 방문에 권한을 재확인합니다. 같은 파일명이 있으면 `(1)`, `(2)`를 붙여 덮어쓰지 않습니다. API 미지원 또는 권한 미부여 시 일반 브라우저 다운로드로 폴백하므로 브라우저의 기본 다운로드 폴더를 `C:\obsidian\download`로 설정하세요.
+
+입력 링크와 변환된 대화는 서버 DB 또는 파일에 저장하지 않으며 일반 로그에도 기록하지 않습니다.
 
 ---
 
@@ -62,6 +106,11 @@ python main.py --output-dir /path/to/reports
 seoblue0342/
 ├── main.py              # 메인 실행 파일 (CLI)
 ├── webapp.py            # ★ 웹 진입점 (Flask) — OCI에서 seo.이후.com 서비스용
+├── auth.py              # 계정 seed, 로그인 제한, 세션, CSRF, 비밀번호 변경
+├── drive_service.py     # 서버 전용 Google Drive REST 클라이언트
+├── conversation_parser.py # 공개 공유 링크 검증·가져오기·Markdown 변환
+├── templates/           # 로그인, G-Drive, Obsidian Download 화면
+├── static/              # 공통 반응형 UI 및 브라우저 저장 로직
 ├── config.py            # 설정 (키워드, URL, 헤더 등)
 ├── rank_monitor.py      # 네이버 검색 순위 체크 + DB
 ├── seo_analyzer.py      # 페이지별 SEO 15항목 분석

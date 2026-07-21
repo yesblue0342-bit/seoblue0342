@@ -82,6 +82,21 @@ NAVER_CLIENT_SECRET=발급한_Client_Secret
 - [ ] 구글 서치콘솔에 사이트 등록 + 사이트맵 제출
 - [ ] 1~2주 후 `python main.py`로 순위/점수 재측정
 
+### G-Drive / Obsidian Download 운영 체크리스트
+
+- [ ] 앱 루트에서 `.env.example`을 참고해 `.env`를 만들고 파일 권한을 운영 계정만 읽을 수 있게 제한
+- [ ] `SEO_SESSION_SECRET`에 충분히 긴 무작위 값을 설정
+- [ ] 최초 배포에서만 `SEO_INITIAL_PASSWORD`를 설정하고 `admin`, `yesblue0342`로 로그인 가능한지 확인
+- [ ] 두 계정 모두 최초 로그인 직후 새 비밀번호로 변경하고, 완료 후 `.env`에서 `SEO_INITIAL_PASSWORD` 제거
+- [ ] `seoblue0342-data` 명명 볼륨이 `/app/data`에 연결되어 재배포 후 계정 DB가 유지되는지 확인
+- [ ] `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`을 Stella 운영 자격증명과 실제 승인 scope에 맞게 설정
+- [ ] `/g-drive`에서 목록·폴더 이동·검색·다운로드를 확인
+- [ ] 쓰기 scope가 실제로 승인된 경우에만 `SEO_DRIVE_WRITES_ENABLED=1`로 변경하고 테스트 폴더에서 업로드·이름 변경·이동·휴지통 확인
+- [ ] `/obsidian-download`에서 공개 ChatGPT/Claude 링크 변환과 Markdown 미리보기 확인
+- [ ] Chromium에서 `C:\obsidian\download`를 직접 선택한 뒤 재방문 권한과 중복 파일명 회피 확인
+- [ ] 비로그인 상태에서 `/g-drive`, `/obsidian-download`, `/api/g-drive/files`, `/api/obsidian/convert` 접근이 차단되는지 확인
+- [ ] 운영 HTTPS 응답의 세션 쿠키에 `HttpOnly`, `Secure`, `SameSite=Lax`가 적용되는지 확인
+
 ---
 
 ## ⚠️ 내용 점검 권장
