@@ -14,11 +14,12 @@
   <button id="refresh-drive" type="button">새로고침</button>
   <div class="write-actions" data-write-only hidden>
     <button id="new-folder" type="button">새 폴더</button>
-    <label class="file-upload">업로드<input id="file-upload" type="file" hidden></label>
+    <label class="file-upload">업로드<input id="file-upload" type="file" multiple hidden></label>
   </div>
 </section>
 
 <nav id="breadcrumb" class="breadcrumb" aria-label="현재 폴더"></nav>
+<p class="muted" data-write-only hidden>파일을 현재 경로 또는 폴더에 끌어 놓아 업로드할 수 있습니다.</p>
 <div id="drive-message" class="inline-message" role="status" aria-live="polite"></div>
 <section class="file-panel" aria-labelledby="file-list-title">
   <h2 id="file-list-title" class="sr-only">파일 목록</h2>

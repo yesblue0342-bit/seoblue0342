@@ -1,3 +1,4 @@
+import io
 import os
 import sqlite3
 import sys
@@ -304,6 +305,59 @@ def test_file_page_is_provider_neutral_and_has_theme_toggle(client):
     assert "data-theme-toggle" in html
     for provider_name in ("G-Drive", "Google Drive", "GOOGLE DRIVE", "내 드라이브"):
         assert provider_name not in html
+
+
+def test_drive_upload_forwards_dropped_file_target_folder(client, monkeypatch):
+    captured = {}
+
+    class FakeDrive:
+        def upload(self, parent_id, name, mime_type, stream):
+            captured.update(
+                parent_id=parent_id,
+                name=name,
+                mime_type=mime_type,
+                content=stream.read(),
+            )
+            return {"id": "uploaded", "name": name, "parents": [parent_id]}
+
+    login(client)
+    change_password(client)
+    monkeypatch.setattr(webapp, "get_drive_client", lambda: FakeDrive())
+    with client.session_transaction() as session:
+        token = session["csrf_token"]
+
+    response = client.post(
+        "/api/g-drive/upload",
+        data={
+            "parent_id": "folder_123",
+            "file": (io.BytesIO(b"dropped content"), "dropped.txt"),
+        },
+        headers={"X-CSRF-Token": token},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 201
+    assert captured == {
+        "parent_id": "folder_123",
+        "name": "dropped.txt",
+        "mime_type": "text/plain",
+        "content": b"dropped content",
+    }
+
+
+def test_gdrive_script_binds_dropped_files_to_folder_paths():
+    script_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "static",
+        "gdrive.js",
+    )
+    with open(script_path, encoding="utf-8") as script_file:
+        script = script_file.read()
+
+    assert "dragover" in script
+    assert "addEventListener('drop'" in script
+    assert "data-drop-folder" in script
+    assert "fd.append('parent_id',parentId)" in script
 
 
 def test_obsidian_page_explains_public_share_without_api_key(client):

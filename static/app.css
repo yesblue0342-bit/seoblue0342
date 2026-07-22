@@ -40,6 +40,9 @@ button:hover,.file-upload:hover{background:var(--soft)}
 .write-actions{display:flex;gap:8px}
 .breadcrumb{padding:12px 16px;background:var(--soft);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
 .breadcrumb button{padding:2px 7px;border:0;background:transparent;color:var(--ink)}
+.folder-drop-target{transition:outline-color .12s ease,background .12s ease}
+.folder-drop-target.is-dragover{outline:2px dashed var(--focus);outline-offset:-4px;background:var(--soft)}
+.breadcrumb button.folder-drop-target.is-dragover{outline-offset:1px}
 .inline-message{margin:12px 0 0;display:none}
 .inline-message:not(:empty){display:block}
 .file-panel{background:var(--surface);border:1px solid var(--line);border-radius:0 0 12px 12px;overflow:hidden}
