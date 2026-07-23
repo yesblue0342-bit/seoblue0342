@@ -18,6 +18,7 @@
   </div>
 </section>
 
+<div id="drive-drop-zone">
 <nav id="breadcrumb" class="breadcrumb" aria-label="현재 폴더"></nav>
 <p class="muted" data-write-only hidden>파일을 현재 경로 또는 폴더에 끌어 놓아 업로드할 수 있습니다.</p>
 <div id="drive-message" class="inline-message" role="status" aria-live="polite"></div>
@@ -26,5 +27,6 @@
   <div class="file-head" aria-hidden="true"><span>이름</span><span>유형</span><span>수정일</span><span>크기</span><span>작업</span></div>
   <div id="file-list" class="file-list"><div class="empty-state">불러오는 중…</div></div>
 </section>
+</div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='gdrive.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='gdrive.js', v='20260723-drop2') }}" defer></script>{% endblock %}

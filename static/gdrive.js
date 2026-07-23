@@ -4,7 +4,7 @@
   const listEl = document.getElementById("file-list");
   const messageEl = document.getElementById("drive-message");
   const breadcrumbEl = document.getElementById("breadcrumb");
-  const filePanelEl = document.querySelector(".file-panel");
+  const dropZoneEl = document.getElementById("drive-drop-zone");
   const capabilityEl = document.getElementById("drive-capability");
   const state = { folderId: "root", crumbs: [{ id: "root", name: "내 폴더" }], files: [], writes: false };
 
@@ -60,7 +60,10 @@
   function renameFile(file){const name=prompt('새 이름을 입력하세요.',file.name);if(name&&name.trim()&&name.trim()!==file.name)mutate('rename',{file_id:file.id,name:name.trim()});}
   function moveFile(file){const target=prompt('이동할 폴더 ID를 입력하세요.');if(target&&target.trim())mutate('move',{file_id:file.id,target_parent_id:target.trim()});}
   function deleteFile(file){if(confirm(`“${file.name}”을(를) 휴지통으로 이동할까요?`))mutate('delete',{file_id:file.id,confirm:true});}
-  function isFileDrag(event){return Array.from(event.dataTransfer?.types||[]).includes('Files');}
+  function isFileDrag(event){
+    const types=Array.from(event.dataTransfer?.types||[]);
+    return types.includes('Files')||types.includes('application/x-moz-file')||(!types.length&&Boolean(event.dataTransfer));
+  }
   function bindFolderDropTarget(element,getFolderId){
     element.classList.add('folder-drop-target');
     for(const type of ['dragenter','dragover'])element.addEventListener(type,event=>{
@@ -70,11 +73,12 @@
     });
     element.addEventListener('dragleave',event=>{if(!element.contains(event.relatedTarget))element.classList.remove('is-dragover');});
     element.addEventListener('drop',event=>{
-      if(!isFileDrag(event))return;
+      const files=event.dataTransfer?.files;
+      if(!files?.length)return;
       event.preventDefault();event.stopPropagation();element.classList.remove('is-dragover');
       if(!state.writes){setMessage('현재 파일 저장소는 읽기 전용입니다.','error');return;}
       const parentId=getFolderId();
-      if(parentId)uploadFiles(event.dataTransfer.files,parentId);
+      if(parentId)uploadFiles(files,parentId);
     });
   }
   async function uploadFiles(fileList,parentId){
@@ -100,6 +104,6 @@
   document.getElementById('new-folder').addEventListener('click',()=>{const name=prompt('새 폴더 이름');if(name&&name.trim())mutate('folder',{parent_id:state.folderId,name:name.trim()});});
   document.getElementById('file-upload').addEventListener('change',async e=>{await uploadFiles(e.target.files,state.folderId);e.target.value='';});
   bindFolderDropTarget(breadcrumbEl,()=>state.folderId);
-  bindFolderDropTarget(filePanelEl,()=>state.folderId);
+  bindFolderDropTarget(dropZoneEl,()=>state.folderId);
   init();
 })();

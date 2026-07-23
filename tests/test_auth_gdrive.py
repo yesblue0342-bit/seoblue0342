@@ -303,6 +303,8 @@ def test_file_page_is_provider_neutral_and_has_theme_toggle(client):
 
     assert "<h1>파일</h1>" in html
     assert "data-theme-toggle" in html
+    assert 'id="drive-drop-zone"' in html
+    assert "gdrive.js?v=20260723-drop2" in html
     for provider_name in ("G-Drive", "Google Drive", "GOOGLE DRIVE", "내 드라이브"):
         assert provider_name not in html
 
@@ -358,6 +360,8 @@ def test_gdrive_script_binds_dropped_files_to_folder_paths():
     assert "addEventListener('drop'" in script
     assert "data-drop-folder" in script
     assert "fd.append('parent_id',parentId)" in script
+    assert "dataTransfer?.files" in script
+    assert "application/x-moz-file" in script
 
 
 def test_obsidian_page_explains_public_share_without_api_key(client):
